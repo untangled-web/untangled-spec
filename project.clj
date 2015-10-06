@@ -1,31 +1,25 @@
-(defproject smooth-test "0.1.0-SNAPSHOT"
-  :description "Smooth testing"
+(defproject smooth-spec "0.1.0"
+  :description "Smooth specifications"
   :url ""
   :license {:name "MIT Public License"
             :url ""}
   :dependencies [
                  [org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "0.0-3308"]
+                 [org.clojure/clojurescript "1.7.48"]
+                 [colorize "0.1.1" :exclusions [org.clojure/clojure]]
                  ]
-  :plugins [[lein-cljsbuild "1.0.5"]
-            [lein-figwheel "0.3.7"]]
-  :clean-targets [:target-path "target" "resources/public/js"]
+  :plugins [[lein-cljsbuild "1.1.0"]
+            [lein-figwheel "0.4.0"]]
+  :clean-targets ^{:protect false} [:target-path "target" "resources/public/js"]
   :cljsbuild {
               :builds [
-                       { :id "dev"
-                        :source-paths ["src" "dev" ]
-                        :compiler {:main smooth-test.core
-                                   :asset-path "js/out"
-                                   :output-to  "resources/public/js/main.js"
-                                   :output-dir "resources/public/js/out"} 
-                        :figwheel true
-                        }
-                       {:id "test"
+                       {:id "dev"
                         :source-paths ["src" "dev" "test"]
                         :figwheel { :on-jsload "cljs.user/on-load" }
                         :compiler {:main cljs.user
                                    :output-to "resources/public/js/test/test.js"
                                    :output-dir "resources/public/js/test/out"
+                                   :recompile-dependents true
                                    :asset-path "js/test/out"
                                    :optimizations :none
                                    }
@@ -37,10 +31,13 @@
              }
   :profiles {
              :dev {
-                   :dependencies [
-                                  [midje "1.7.0"]
-                                  ]
                    :source-paths ["src" "test" "dev"]
+                   :repl-options {
+                                  :init-ns clj.user
+                                  :port 7001
+                                  }
+                   :env {:dev true }
                    }
              }
+  :test-refresh  {:report  smooth-spec.report/smooth-report}
   )
