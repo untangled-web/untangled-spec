@@ -1,8 +1,11 @@
 (ns untangled-spec.impl.macros)
 
-(defn- cljs-env?
+(defn cljs-env?
   "https://github.com/Prismatic/schema/blob/master/src/clj/schema/macros.clj"
   [env] (boolean (:ns env)))
+
+(defn if-cljs [env cljs clj]
+  (if (cljs-env? env) cljs clj))
 
 (defmacro with-reporting
   "Wraps body in a begin-* and an end-* do-report if the msg contains a :type"

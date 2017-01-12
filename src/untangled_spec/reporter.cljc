@@ -1,10 +1,16 @@
-(ns untangled-spec.reporters.impl.base-reporter
+(ns untangled-spec.reporter
   (:require
     #?@(:cljs ([cljs-uuid-utils.core :as uuid]
                [cljs.stacktrace :refer [parse-stacktrace]]))
     [clojure.set :as set]
-    [#?(:clj clojure.test :cljs cljs.test) :as t]
-    [untangled-spec.reporters.impl.diff :refer [diff]]))
+    [clojure.test :as t]
+    [untangled-spec.diff :refer [diff]])
+  #?(:clj
+     (:import (java.util UUID))))
+
+(defn new-uuid []
+  #?(:clj (UUID/randomUUID)
+     :cljs (uuid/uuid-string (uuid/make-random-uuid))))
 
 (defn fix-str [s]
   (case s
@@ -15,20 +21,20 @@
 (defn make-testreport
   ([] (make-testreport []))
   ([initial-items]
-   {#?@(:cljs [:id (uuid/uuid-string (uuid/make-random-uuid))])
-    :summary       ""
-    :namespaces    []
-    #?@(:clj [:tested 0])
-    :passed        0
-    :failed        0
-    :error         0}))
+   {:id (new-uuid)
+    :summary ""
+    :namespaces []
+    :tested 0
+    :passed 0
+    :failed 0
+    :error 0}))
 
 (defn make-testitem
   [test-name]
-  {#?@(:cljs [:id (uuid/uuid-string (uuid/make-random-uuid))])
-   :name         test-name
-   :status       {}
-   :test-items   []
+  {:id (new-uuid)
+   :name test-name
+   :status {}
+   :test-items []
    :test-results []})
 
 (defn make-manual [test-name] (make-testitem (str test-name " (MANUAL TEST)")))
@@ -43,17 +49,19 @@
 (defn make-test-result
   [status t]
   (-> t
-    (merge {#?@(:cljs [:id (uuid/uuid-string (uuid/make-random-uuid))])
+    (merge {:id (new-uuid)
             :status status
             :where (t/testing-vars-str t)})
       (merge-in-diff-results)
       #?(:cljs (#(if (some-> % :actual .-stack)
                    (assoc % :stack (-> % :actual .-stack stack->trace))
-                   %)))))
+                   %)))
+      (update :actual fix-str)
+      (update :actual fix-str)))
 
 (defn make-tests-by-namespace
   [test-name]
-  {#?@(:cljs [:id (uuid/uuid-string (uuid/make-random-uuid))])
+  {:id (new-uuid)
    :name       test-name
    :test-items []
    :status     {}})
@@ -88,7 +96,11 @@
     (or namespace-index
       (count namespaces))))
 
+(defn inc-report-counter [type]
+  (#?(:clj t/inc-report-counter :cljs t/inc-report-counter!) type))
+
 (defn failure* [{:as this :keys [state path]} t failure-type]
+  (inc-report-counter failure-type)
   (let [path @path
         {:keys [test-results]} (get-in @state path)
         new-result (make-test-result failure-type t)]
@@ -103,7 +115,9 @@
 (defn fail [this t]
   (failure* this t :failed))
 
-(defn pass [this t] (set-test-result this :passed))
+(defn pass [this t]
+  (inc-report-counter :pass)
+  (set-test-result this :passed))
 
 (defn push-test-item-path [{:keys [path]} test-item index]
   (swap! path conj :test-items index))

@@ -1,6 +1,6 @@
-(ns untangled-spec.reporters.impl.diff-spec
+(ns untangled-spec.diff-spec
   (:require
-    [untangled-spec.reporters.impl.diff :as src
+    [untangled-spec.diff :as src
      :refer [nf diff diff-elem patch compress decompress]]
     [untangled-spec.core :as usc #?(:clj :refer :cljs :refer-macros)
      [specification behavior assertions]]))

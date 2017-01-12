@@ -3,6 +3,8 @@
 
 (specification "assertions blocks work on cljs"
   (assertions
+    :should-reload => :when-changed)
+  (assertions
     "throws arrow can catch"
     (assert false "foobar") =throws=> (js/Error #"ooba")
     "throws arrow can catch js/Objects"

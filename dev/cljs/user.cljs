@@ -1,12 +1,10 @@
-(ns ^:figwheel-always cljs.user
-  (:require untangled-spec.tests-to-run
-            [untangled-spec.reporters.suite
-             :refer-macros [deftest-all-suite]]))
+(ns cljs.user
+  (:require
+    [com.stuartsierra.component :as cp]
+    [untangled-spec.runner :as runner]
+    [untangled-spec.tests-to-run]))
 
 (enable-console-print!)
 
-(deftest-all-suite spec-report #"untangled.*-spec")
-
-(def on-load spec-report)
-
-(spec-report)
+(defonce spec-report (cp/start (runner/test-runner)))
+(def on-load #(runner/run-tests spec-report))

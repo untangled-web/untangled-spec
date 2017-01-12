@@ -10,22 +10,6 @@
     [untangled-spec.stub]
     [untangled-spec.spec :as us]))
 
-(defn- cljs-env?
-  "https://github.com/Prismatic/schema/blob/master/src/clj/schema/macros.clj"
-  [env] (boolean (:ns env)))
-
-(defn- if-cljs [env cljs clj]
-  (if (cljs-env? env) cljs clj))
-
-(defmethod clojure.test/assert-expr '= [msg form]
-  `(clojure.test/do-report ~(ae/assert-expr msg form)))
-
-(defmethod clojure.test/assert-expr 'exec [msg form]
-  `(clojure.test/do-report ~(ae/assert-expr msg form)))
-
-(defmethod clojure.test/assert-expr 'throws? [msg form]
-  `(clojure.test/do-report ~(ae/assert-expr msg form)))
-
 (defn var-name-from-string [s]
   (symbol (str "__" (str/replace s #"[^\w\d\-\!\#\$\%\&\*\_\<\>\:\?\|]" "-") "__")))
 
@@ -43,7 +27,7 @@
   [& args]
   (let [{:keys [name opts body]} (us/conform! ::specification args)
         var-name (var-name-from-string name)
-        prefix (if-cljs &env "cljs.test" "clojure.test")]
+        prefix (im/if-cljs &env "cljs.test" "clojure.test")]
     `(~(symbol prefix "deftest")
        ~(with-meta (symbol (str var-name (gensym)))
           (zipmap opts (repeat true)))
@@ -67,7 +51,7 @@
   (let [{:keys [name opts body]} (us/conform! ::behavior args)
         typekw (if (contains? opts :manual-test)
                  :manual :behavior)
-        prefix (if-cljs &env "cljs.test" "clojure.test")]
+        prefix (im/if-cljs &env "cljs.test" "clojure.test")]
     `(~(symbol prefix "testing") ~name
        (im/with-reporting ~{:type typekw :string name}
          ~@body))))
@@ -100,16 +84,16 @@
    assertion-style mocking statements into code that can do that mocking.
    See the doc string for `p/parse-arrow-count`."
   [string & forms]
-  (apply p/provided-fn (cljs-env? &env) string forms))
+  (apply p/provided-fn (im/cljs-env? &env) string forms))
 
 (defmacro when-mocking
   "A macro that works just like 'provided', but requires no string and outputs no extra text in the test output.
    See the doc string for `p/parse-arrow-count`."
   [& forms]
-  (apply p/provided-fn (cljs-env? &env) :skip-output forms))
+  (apply p/provided-fn (im/cljs-env? &env) :skip-output forms))
 
 (s/fdef assertions :args ::ae/assertions)
 (defmacro assertions [& forms]
   (let [blocks (ae/fix-conform (us/conform! ::ae/assertions forms))
-        asserts (map (partial ae/block->asserts (cljs-env? &env)) blocks)]
+        asserts (map (partial ae/block->asserts (im/cljs-env? &env)) blocks)]
     `(do ~@asserts true)))

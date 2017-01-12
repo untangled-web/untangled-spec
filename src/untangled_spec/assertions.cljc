@@ -1,6 +1,6 @@
 (ns untangled-spec.assertions
   (:require
-    [#?(:clj clojure.spec :cljs cljs.spec) :as s]
+    [clojure.spec :as s]
     #?(:clj [untangled-spec.impl.macros :as im])
     [untangled-spec.spec :as us]))
 

@@ -3,21 +3,23 @@
   :url ""
   :license {:name "MIT Public License"
             :url  "https://opensource.org/licenses/MIT"}
-  :dependencies [[org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.293" :scope "provided"]
+  :dependencies [[bidi "2.0.9"]
+                 [cljsjs/react-with-addons "15.0.1-1" :scope "provided"]
                  [colorize "0.1.1" :exclusions [org.clojure/clojure]]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [cljsjs/react-with-addons "15.0.1-1" :scope "provided"]
-                 [org.omcljs/om "1.0.0-alpha47" :scope "provided" :exclusions [cljsjs/react]]
                  [io.aviso/pretty "0.1.23"]
+                 [kibu/pushy "0.3.6"]
                  [lein-doo "0.1.6" :scope "test"]
-                 [bidi "2.0.9"]
-                 [kibu/pushy "0.3.6"]]
+                 [navis/untangled-client "0.6.0"]
+                 [navis/untangled-server "0.6.2"]
+                 [navis/untangled-websockets "0.3.1"]
+                 [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.293" :scope "provided"]
+                 [org.omcljs/om "1.0.0-alpha47" :scope "provided" :exclusions [cljsjs/react]]]
 
   :plugins [[lein-cljsbuild "1.1.5"]
             [lein-doo "0.1.6"] ; for cljs CI tests
             [lein-figwheel "0.5.8" :exclusions [ring/ring-core commons-fileupload clj-time joda-time org.clojure/clojure org.clojure/tools.reader]]
-            [com.jakemccrary/lein-test-refresh "0.17.0"]
             [lein-shell "0.5.0"]]
 
   :release-tasks [["shell" "bin/release" "all_tasks"]]
@@ -25,14 +27,6 @@
   :source-paths ["src"]
   :test-paths ["test"]
   :resource-paths ["src" "resources"]
-
-  :test-selectors {:default (complement :integration)
-                   :integration :integration
-                   :all (constantly true)
-                   :focused :focused}
-  :test-refresh {:report untangled-spec.reporters.terminal/untangled-report
-                 :changes-only true
-                 :with-repl true}
 
   ; CI tests: Set up to support karma runner. Recommend running against chrome. See README
   :doo {:build "automated-tests"
