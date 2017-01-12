@@ -7,7 +7,6 @@
                  [cljsjs/react-with-addons "15.0.1-1" :scope "provided"]
                  [colorize "0.1.1" :exclusions [org.clojure/clojure]]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [io.aviso/pretty "0.1.23"]
                  [kibu/pushy "0.3.6"]
                  [lein-doo "0.1.6" :scope "test"]
                  [navis/untangled-client "0.6.0"]

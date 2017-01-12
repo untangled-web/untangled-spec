@@ -167,3 +167,26 @@
       {:pass :passed
        :fail :failed
        :test :tested})))
+
+(defn untangled-report [{:test/keys [runner] :as system} render-tests]
+  (fn [t]
+    (case (:type t)
+      :pass (pass runner t)
+      :error (error runner t)
+      :fail (fail runner t)
+      :begin-test-ns (begin-namespace runner t)
+      :end-test-ns (end-namespace runner t)
+      :begin-specification (begin-specification runner t)
+      :end-specification (end-specification runner t)
+      :begin-behavior (begin-behavior runner t)
+      :end-behavior (end-behavior runner t)
+      :begin-manual (begin-manual runner t)
+      :end-manual (end-manual runner t)
+      :begin-provided (begin-provided runner t)
+      :end-provided (end-provided runner t)
+      :summary (do (summary runner t)
+                 (render-tests system))
+      :ok)))
+
+#?(:clj (defmacro with-untangled-reporting [system render-tests & body]
+          `(binding [t/report (untangled-report ~system ~render-tests)] ~@body)))

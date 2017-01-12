@@ -1,6 +1,7 @@
 (ns untangled-spec.renderer
   (:require
     [bidi.bidi :as bidi]
+    [com.stuartsierra.component :as cp]
     [clojure.string :as str]
     [goog.dom :as gdom]
     [om.dom :as dom]
@@ -254,11 +255,11 @@
 
 (defui ^:once TestReport
   static om/IQuery
-  (query [this] [:test-report :report/filter])
+  (query [this] [:ui/react-key :test-report :report/filter])
   Object
   (render [this]
-    (let [{:keys [test-report] current-filter :report/filter} (om/props this)]
-      (dom/section #js {:className "test-report"}
+    (let [{:keys [test-report ui/react-key] current-filter :report/filter} (om/props this)]
+      (dom/section #js {:key react-key :className "test-report"}
         (ui-filters {:current-filter current-filter})
         (dom/ul #js {:className "test-list"}
           (sequence
@@ -298,16 +299,32 @@
                     :identity-fn :handler))]
     (pushy/start! history)))
 
-(defonce app (atom (uc/new-untangled-client
-                     ;:networking (wn/make-channel-client "/chsk"
-                     ;              :global-error-callback (constantly nil))
-                     :initial-state {:report/filter :all}
-                     :started-callback
-                     (fn [{:keys [reconciler]}]
-                       (setup-history! reconciler)))))
-(swap! app uc/mount TestReport "spec-report")
+(defn render-tests [system params]
+  (let [app @(:app (:test/renderer system))]
+    (uc/refresh app)
+    (om/transact! (:reconciler app)
+      `[(render-tests ~params)])))
 
-(defn render-tests [params]
-  (swap! app uc/mount TestReport "spec-report")
-  (om/transact! (:reconciler @app)
-    `[(render-tests ~params)]))
+(defrecord TestRenderer [root target run-tests]
+  cp/Lifecycle
+  (start [this]
+    (let [app (atom nil)]
+      (-> (uc/new-untangled-client
+            ;:networking (wn/make-channel-client "/chsk"
+            ;              :global-error-callback (constantly nil))
+            :initial-state {:report/filter :all}
+            :started-callback
+            (fn [{:as started-app :keys [reconciler]}]
+              (reset! app started-app)
+              (setup-history! reconciler)
+              (run-tests (assoc this :app app))))
+        (uc/mount root target))
+      (assoc this :app app)))
+  (stop [this] (empty this)))
+
+(defn make-test-renderer [run-tests]
+  (cp/using
+    (map->TestRenderer {:root TestReport
+                        :run-tests run-tests
+                        :target "spec-report"})
+    [:test/runner]))

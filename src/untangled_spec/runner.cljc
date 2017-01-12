@@ -49,43 +49,22 @@
        (map->ChannelWrapper {})
        [:channel-server])))
 
-(defn render-tests [this]
-  #?(:cljs (renderer/render-tests {:test-report @(:state this)})
-     :clj nil #_(mapv #(ws/push (:ws-net this) %
-                   `renderer/render-tests
-                   {:test-report @(:state this)})
-            (:any @(:connected-uids (:ws-net this))))))
+(defn render-tests [system]
+  #?(:cljs (renderer/render-tests system {:test-report @(:state (:test/runner system))})
+     :clj (assert false "WIP TODO FIXME"
+            #_(mapv #(ws/push (:ws-net FIXME) %
+                       `renderer/render-tests
+                       {:test-report @(:state FIXME)})
+                (:any @(:connected-uids (:ws-net FIXME)))))))
 
-(defn install-untangled-reporting! [this]
-  (defmethod t/report :default [t]
-    (case (:type t)
-      :pass (report/pass this t)
-      :error (report/error this t)
-      :fail (report/fail this t)
-      :begin-test-ns (report/begin-namespace this t)
-      :end-test-ns (report/end-namespace this t)
-      :begin-specification (report/begin-specification this t)
-      :end-specification (report/end-specification this t)
-      :begin-behavior (report/begin-behavior this t)
-      :end-behavior (report/end-behavior this t)
-      :begin-manual (report/begin-manual this t)
-      :end-manual (report/end-manual this t)
-      :begin-provided (report/begin-provided this t)
-      :end-provided (report/end-provided this t)
-      :summary (do (report/summary this t)
-                 (render-tests this))
-      :ok)))
-
-(defn run-tests [this]
-  (t/run-all-tests #".*-spec"
-    #?(:cljs (t/empty-env ::TestRunner))))
+(defn run-tests [system]
+  (report/with-untangled-reporting system render-tests
+    (t/run-all-tests #".*-spec"
+      #?(:cljs (t/empty-env ::TestRunner)))))
 
 (defrecord TestRunner [state path]
   cp/Lifecycle
-  (start [this]
-    (install-untangled-reporting! this)
-    (run-tests this)
-    this)
+  (start [this] this)
   (stop [this]
     ;; TODO: is this necessary?
     (reset! state (report/make-testreport))
@@ -98,7 +77,11 @@
      :path  (atom [])}))
 
 (defn test-runner []
-  #?(:cljs (make-test-runner)
-     :clj (assert false "WIP TODO FIXME")
-     ;; TODO: make-untangled-server here
-     ))
+  (cp/start
+    #?(:cljs (cp/system-map
+               :test/renderer (renderer/make-test-renderer
+                                #(run-tests (assoc % :test/renderer %)))
+               :test/runner (make-test-runner))
+       :clj (assert false "WIP TODO FIXME"
+              ;; TODO: make-untangled-server here
+              ))))
