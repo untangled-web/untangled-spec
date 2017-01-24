@@ -84,8 +84,8 @@
     "="       (eq-assert-expr     msg form)
     "exec"    (fn-assert-expr     msg form)
     "throws?" (throws-assert-expr msg form)
-    :else {:type :fail :message msg :actual disp-key
-           :expected #{"exec" "eq" "throws?"}}))
+    {:type :fail :message msg :actual disp-key
+     :expected #{"exec" "eq" "throws?"}}))
 
 (defn triple->assertion [cljs? {:keys [actual arrow expected]}]
   (let [prefix (if cljs? "cljs.test" "clojure.test")

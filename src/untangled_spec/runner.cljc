@@ -18,13 +18,13 @@
 #?(:clj (defmacro define-assert-exprs! []
           (let [prefix (im/if-cljs &env "cljs.test" "clojure.test")
                 do-report (symbol prefix "do-report")
-                t-assert-expr (im/if-cljs &env cljs.test/assert-expr clojure.test/assert-expr)]
-            (defmethod t-assert-expr '= [_ msg form]
-              `(~do-report ~(ae/assert-expr msg form)))
-            (defmethod t-assert-expr 'exec [_ msg form]
-              `(~do-report ~(ae/assert-expr msg form)))
-            (defmethod t-assert-expr 'throws? [_ msg form]
-              `(~do-report ~(ae/assert-expr msg form))))))
+                t-assert-expr (im/if-cljs &env cljs.test/assert-expr clojure.test/assert-expr)
+                do-assert-expr
+                (fn [[msg form :as args]]
+                  `(~do-report ~(ae/assert-expr msg form)))]
+            (defmethod t-assert-expr '= [& args] (do-assert-expr args))
+            (defmethod t-assert-expr 'exec [& args] (do-assert-expr args))
+            (defmethod t-assert-expr 'throws? [& args] (do-assert-expr args)))))
 (define-assert-exprs!)
 
 #?(:clj
