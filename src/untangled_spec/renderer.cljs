@@ -324,7 +324,8 @@
   (stop [this]
     (assoc this :app nil)))
 
-(defn make-test-renderer []
+(defn make-test-renderer [opts]
   (map->TestRenderer
-    {:root TestReport
-     :target "spec-report"}))
+    (merge {:root TestReport
+            :target "spec-report"}
+      opts)))

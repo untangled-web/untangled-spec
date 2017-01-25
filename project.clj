@@ -45,7 +45,7 @@
                                               :optimizations        :none}}
                               {:id           "server-tests"
                                :source-paths ["src" "dev" "test"]
-                               :compiler     {:main                 cljs.user
+                               :compiler     {:main                 cljs.server-tests
                                               :output-to            "resources/public/js/test/server-tests.js"
                                               :output-dir           "resources/public/js/test/server-tests"
                                               :asset-path           "js/test/server-tests"

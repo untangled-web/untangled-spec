@@ -72,9 +72,9 @@
     (render* system {:test-report (reporter/get-test-report reporter)})))
 
 (defn- run-tests [system]
-  (reporter/with-untangled-reporting system render-tests
-    (t/run-all-tests #"untangled-spec.*-spec" ;(:ns-regex (:opts system))
-      #?(:cljs (t/empty-env ::TestRunner)))))
+  (reporter/with-untangled-reporting
+    system render-tests
+    ((:test! system))))
 
 (defrecord TestRunner [opts]
   cp/Lifecycle
@@ -84,16 +84,16 @@
     this)
   (stop [this] this))
 
-(defn- make-test-runner [opts]
+(defn- make-test-runner [opts test!]
   (cp/using
-    (map->TestRunner {:opts opts})
+    (map->TestRunner {:opts opts :test! test!})
     [:test/reporter #?(:cljs :test/renderer :clj :channel-server)]))
 
-(defn test-runner [opts]
+(defn test-runner* [opts test!]
   (cp/start
     #?(:cljs (cp/system-map
-               :test/renderer (renderer/make-test-renderer)
-               :test/runner (make-test-runner opts)
+               :test/renderer (renderer/make-test-renderer {})
+               :test/runner (make-test-runner opts test!)
                :test/reporter (reporter/make-test-reporter))
        :clj (let [api-read (fn [& args] (prn :read args))
                   api-mutate (fn [& args] (prn :mutate args))]
@@ -102,12 +102,26 @@
                 :parser (oms/parser {:read api-read :mutate api-mutate})
                 :components {:channel-server (wcs/make-channel-server)
                              :channel-listener (make-channel-listener)
-                             :test/runner (make-test-runner opts)
+                             :test/runner (make-test-runner opts test!)
                              :test/reporter (reporter/make-test-reporter)}
-                :extra-routes {:routes   ["/" {["chsk"] :web-socket
+                :extra-routes {:routes   ["/" {"chsk" :web-socket
                                                "server-tests.html" :server-tests}]
                                :handlers {:web-socket wcs/route-handlers
                                           :server-tests (fn [{:keys [request]} _match]
                                                           (prn :match _match)
                                                           (resp/resource-response "server-tests.html"
                                                             {:root "public"}))}})))))
+
+#?(:clj
+   (defmacro test-runner [opts]
+     (let [t-prefix (im/if-cljs &env "cljs.test" "clojure.test")
+           run-all-tests (symbol t-prefix "run-all-tests")
+           empty-env (symbol t-prefix "empty-env")]
+       `(test-runner* ~opts
+          (fn []
+            (~run-all-tests
+              ~(:ns-regex opts)
+              ~@(im/if-cljs &env `[(~empty-env ::TestRunner)] [])))))))
+
+#?(:cljs (defn test-renderer [opts]
+           (cp/start (renderer/make-test-renderer opts))))
