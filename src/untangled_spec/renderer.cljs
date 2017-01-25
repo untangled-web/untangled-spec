@@ -10,7 +10,8 @@
     [untangled.client.core :as uc]
     [untangled.client.mutations :as m]
     [untangled-spec.dom.edn-renderer :refer [html-edn]]
-    [untangled-spec.diff :as diff]))
+    [untangled-spec.diff :as diff]
+    [untangled.websockets.networking :as wn]))
 
 (enable-console-print!)
 
@@ -204,7 +205,7 @@
                       :onClick #(om/update-state! this update :folded? not)}
             (dom/h2 #js {:className (itemclass (:status tests-by-namespace))}
               (if folded? \u25BA \u25BC)
-              " Testing " (:name tests-by-namespace)))
+              " Testing " (str (:name tests-by-namespace))))
           (dom/ul #js {:className (if folded? "hidden" "test-list")}
             (sequence (comp (filters current-filter)
                         (map #(assoc % :current-filter current-filter))
@@ -299,32 +300,31 @@
                     :identity-fn :handler))]
     (pushy/start! history)))
 
-(defn render-tests [system params]
-  (let [app @(:app (:test/renderer system))]
-    (uc/refresh app)
+(defn render-tests [system test-report]
+  (let [app (:app (:test/renderer system))]
     (om/transact! (:reconciler app)
-      `[(render-tests ~params)])))
+      `[(render-tests ~test-report)])))
 
-(defrecord TestRenderer [root target run-tests]
+(defmethod wn/push-received `render-tests
+  [{:keys [reconciler]} {test-report :msg}]
+  (om/transact! reconciler
+    `[(render-tests ~test-report)]))
+
+(defrecord TestRenderer [root target]
   cp/Lifecycle
   (start [this]
-    (let [app (atom nil)]
-      (-> (uc/new-untangled-client
-            ;:networking (wn/make-channel-client "/chsk"
-            ;              :global-error-callback (constantly nil))
-            :initial-state {:report/filter :all}
-            :started-callback
-            (fn [{:as started-app :keys [reconciler]}]
-              (reset! app started-app)
-              (setup-history! reconciler)
-              (run-tests (assoc this :app app))))
-        (uc/mount root target))
-      (assoc this :app app)))
-  (stop [this] (empty this)))
+    (let [app (uc/new-untangled-client
+                :networking (wn/make-channel-client "/chsk"
+                              :global-error-callback (constantly nil))
+                :initial-state {:report/filter :all}
+                :started-callback
+                (fn [{:keys [reconciler]}]
+                  (setup-history! reconciler)))]
+      (assoc this :app (uc/mount app root target))))
+  (stop [this]
+    (assoc this :app nil)))
 
-(defn make-test-renderer [run-tests]
-  (cp/using
-    (map->TestRenderer {:root TestReport
-                        :run-tests run-tests
-                        :target "spec-report"})
-    [:test/runner]))
+(defn make-test-renderer []
+  (map->TestRenderer
+    {:root TestReport
+     :target "spec-report"}))

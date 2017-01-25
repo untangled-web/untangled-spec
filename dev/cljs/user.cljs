@@ -5,5 +5,5 @@
 
 (enable-console-print!)
 
-(defonce runner (runner/test-runner))
+(defonce runner (runner/test-runner {:ns-regex #"untangled-spec.*-spec"}))
 (def on-load #(runner/run-tests runner))

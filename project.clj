@@ -3,15 +3,15 @@
   :url ""
   :license {:name "MIT Public License"
             :url  "https://opensource.org/licenses/MIT"}
-  :dependencies [[bidi "2.0.9"]
+  :dependencies [[bidi "2.0.12"]
                  [cljsjs/react-with-addons "15.0.1-1" :scope "provided"]
                  [colorize "0.1.1" :exclusions [org.clojure/clojure]]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [kibu/pushy "0.3.6"]
                  [lein-doo "0.1.6" :scope "test"]
                  [navis/untangled-client "0.6.0"]
-                 [navis/untangled-server "0.6.2"]
-                 [navis/untangled-websockets "0.3.1"]
+                 [navis/untangled-server "0.7.0-SNAPSHOT" :exclusions [com.taoensso/timbre]]
+                 [navis/untangled-websockets "0.3.3-SNAPSHOT"]
                  [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
                  [org.clojure/clojurescript "1.9.293" :scope "provided"]
                  [org.omcljs/om "1.0.0-alpha47" :scope "provided" :exclusions [cljsjs/react]]]
@@ -41,8 +41,14 @@
                                :compiler     {:main                 cljs.user
                                               :output-to            "resources/public/js/test/test.js"
                                               :output-dir           "resources/public/js/test/out"
-                                              :recompile-dependents true
                                               :asset-path           "js/test/out"
+                                              :optimizations        :none}}
+                              {:id           "server-tests"
+                               :source-paths ["src" "dev" "test"]
+                               :compiler     {:main                 cljs.user
+                                              :output-to            "resources/public/js/test/server-tests.js"
+                                              :output-dir           "resources/public/js/test/server-tests"
+                                              :asset-path           "js/test/server-tests"
                                               :optimizations        :none}}
                               ;; FOR CI tests. Runs via doo
                               {:id           "automated-tests"
@@ -59,6 +65,7 @@
                    :repl-options {:init-ns clj.user
                                   :port    7001
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                   :dependencies [[figwheel-sidecar "0.5.8"]
+                   :dependencies [[figwheel-sidecar "0.5.8" :exclusions [ring/ring-core http-kit joda-time]]
                                   [com.cemerick/piggieback "0.2.1"]
+                                  [org.clojure/tools.namespace "0.2.10"]
                                   [org.clojure/tools.nrepl "0.2.12"]]}})

@@ -7,6 +7,7 @@
     [untangled-spec.async :as async]
     [untangled-spec.impl.macros :as im]
     [untangled-spec.provided :as p]
+    [untangled-spec.runner] ;;side effects
     [untangled-spec.stub]
     [untangled-spec.spec :as us]))
 

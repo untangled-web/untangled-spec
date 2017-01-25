@@ -1,7 +1,7 @@
 (ns untangled-spec.core
   (:require
+    [cljs.test :include-macros true]
     [untangled-spec.assertions]
     [untangled-spec.async]
-    [untangled-spec.stub]
-    [cljs.test :include-macros true]
-    [untangled-spec.runner]))
+    [untangled-spec.runner] ;;side effects
+    [untangled-spec.stub]))

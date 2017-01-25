@@ -4,6 +4,7 @@
                [cljs.stacktrace :refer [parse-stacktrace]]))
     [clojure.set :as set]
     [clojure.test :as t]
+    [com.stuartsierra.component :as cp]
     [untangled-spec.diff :refer [diff]])
   #?(:clj
      (:import (java.util UUID))))
@@ -168,25 +169,44 @@
        :fail :failed
        :test :tested})))
 
-(defn untangled-report [{:test/keys [runner] :as system} render-tests]
+(defrecord TestReporter [state path]
+  cp/Lifecycle
+  (start [this] this)
+  (stop [this]
+    ;; TODO: is this necessary?
+    (reset! state (make-testreport))
+    (reset! path  [])
+    this))
+
+(defn make-test-reporter
+  "Just a shell to contain minimum state necessary for reporting"
+  []
+  (map->TestReporter
+    {:state (atom (make-testreport))
+     :path  (atom [])}))
+
+(defn get-test-report [reporter]
+  @(:state reporter))
+
+(defn untangled-report [{:keys [test/reporter] :as system} on-complete]
   (fn [t]
     (case (:type t)
-      :pass (pass runner t)
-      :error (error runner t)
-      :fail (fail runner t)
-      :begin-test-ns (begin-namespace runner t)
-      :end-test-ns (end-namespace runner t)
-      :begin-specification (begin-specification runner t)
-      :end-specification (end-specification runner t)
-      :begin-behavior (begin-behavior runner t)
-      :end-behavior (end-behavior runner t)
-      :begin-manual (begin-manual runner t)
-      :end-manual (end-manual runner t)
-      :begin-provided (begin-provided runner t)
-      :end-provided (end-provided runner t)
-      :summary (do (summary runner t)
-                 (render-tests system))
+      :pass (pass reporter t)
+      :error (error reporter t)
+      :fail (fail reporter t)
+      :begin-test-ns (begin-namespace reporter t)
+      :end-test-ns (end-namespace reporter t)
+      :begin-specification (begin-specification reporter t)
+      :end-specification (end-specification reporter t)
+      :begin-behavior (begin-behavior reporter t)
+      :end-behavior (end-behavior reporter t)
+      :begin-manual (begin-manual reporter t)
+      :end-manual (end-manual reporter t)
+      :begin-provided (begin-provided reporter t)
+      :end-provided (end-provided reporter t)
+      :summary (do (summary reporter t) #?(:clj (on-complete system)))
+      #?@(:cljs [:end-run-tests (on-complete system)])
       :ok)))
 
-#?(:clj (defmacro with-untangled-reporting [system render-tests & body]
-          `(binding [t/report (untangled-report ~system ~render-tests)] ~@body)))
+#?(:clj (defmacro with-untangled-reporting [system cb & body]
+          `(binding [t/report (untangled-report ~system ~cb)] ~@body)))
