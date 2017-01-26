@@ -14,6 +14,7 @@
                  [navis/untangled-websockets "0.3.3-SNAPSHOT"]
                  [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
                  [org.clojure/clojurescript "1.9.293" :scope "provided"]
+                 [org.clojure/tools.namespace "0.2.11"]
                  [org.omcljs/om "1.0.0-alpha47" :scope "provided" :exclusions [cljsjs/react]]]
 
   :plugins [[lein-cljsbuild "1.1.5"]
@@ -67,5 +68,4 @@
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[figwheel-sidecar "0.5.8" :exclusions [ring/ring-core http-kit joda-time]]
                                   [com.cemerick/piggieback "0.2.1"]
-                                  [org.clojure/tools.namespace "0.2.10"]
                                   [org.clojure/tools.nrepl "0.2.12"]]}})

@@ -1,9 +1,11 @@
 (ns clj.user
   (:require
+    [clj.system :refer [system]]
+    [clojure.tools.namespace.repl :as tools-ns-repl]
     [com.stuartsierra.component :as cp]
     [figwheel-sidecar.system :as fsys]
-    [clojure.tools.namespace.repl :as tools-ns]
-    [untangled-spec.runner :as runner]))
+    [untangled-spec.runner :as runner]
+    ))
 
 (def figwheel-config (fsys/fetch-config))
 (def figwheel (atom nil))
@@ -27,16 +29,17 @@
 
 ;; SERVER TESTS
 
-(tools-ns/set-refresh-dirs "src/untangled_spec" "dev/clj" "test/untangled_spec")
-
-(defonce system (atom nil))
+(tools-ns-repl/set-refresh-dirs "src/untangled_spec" "dev/clj" "test/untangled_spec")
 
 (defn refresh [& args]
   {:pre [(not @system)]}
-  (apply tools-ns/refresh args))
+  (apply tools-ns-repl/refresh args))
 
 (defn start []
-  (reset! system (runner/test-runner {:ns-regex #"untangled-spec.*-spec"})))
+  (reset! system
+    (runner/test-runner
+      {:test-paths ["test"]
+       :ns-regex #"untangled-spec.*-spec"})))
 
 (defn stop []
   (when @system

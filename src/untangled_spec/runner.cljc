@@ -9,7 +9,10 @@
     [untangled-spec.assertions :as ae]
     [untangled-spec.reporter :as reporter]
     #?@(:cljs ([untangled-spec.renderer :as renderer]))
-    #?@(:clj  ([figwheel-sidecar.system :as fsys]
+    #?@(:clj  ([clojure.java.io :as io]
+               [clojure.tools.namespace.repl :as tools-ns-repl]
+               [clojure.tools.namespace.find :as tools-ns-find]
+               [figwheel-sidecar.system :as fsys]
                [om.next.server :as oms]
                [ring.util.response :as resp]
                [untangled-spec.impl.macros :as im]
@@ -46,10 +49,8 @@
 #?(:clj
    (defrecord ChannelListener [channel-server]
      ws/WSListener
-     (client-dropped [this cs cid]
-       (prn :dropped cid))
+     (client-dropped [this cs cid] this)
      (client-added [this cs cid]
-       (prn :added cid)
        (send-render-tests-msg
          this {:test-report (reporter/get-test-report (:test/reporter this))} cid))
 
@@ -72,16 +73,14 @@
     (render* system {:test-report (reporter/get-test-report reporter)})))
 
 (defn- run-tests [system]
+  #?(:clj (tools-ns-repl/refresh))
   (reporter/with-untangled-reporting
     system render-tests
     ((:test! system))))
 
 (defrecord TestRunner [opts]
   cp/Lifecycle
-  (start [this]
-    (run-tests this)
-    #?(:clj (watch/on-changes #(run-tests this)))
-    this)
+  (start [this] (run-tests this) this)
   (stop [this] this))
 
 (defn- make-test-runner [opts test!]
@@ -103,7 +102,8 @@
                 :components {:channel-server (wcs/make-channel-server)
                              :channel-listener (make-channel-listener)
                              :test/runner (make-test-runner opts test!)
-                             :test/reporter (reporter/make-test-reporter)}
+                             :test/reporter (reporter/make-test-reporter)
+                             :change/watcher (watch/on-change-listener run-tests)}
                 :extra-routes {:routes   ["/" {"chsk" :web-socket
                                                "server-tests.html" :server-tests}]
                                :handlers {:web-socket wcs/route-handlers
@@ -113,15 +113,22 @@
                                                             {:root "public"}))}})))))
 
 #?(:clj
+   (defn nss-in-dirs [dirs]
+     (->> dirs (mapcat (comp tools-ns-find/find-namespaces-in-dir io/file)))))
+
+#?(:clj
    (defmacro test-runner [opts]
      (let [t-prefix (im/if-cljs &env "cljs.test" "clojure.test")
+           run-tests (symbol t-prefix "run-tests")
            run-all-tests (symbol t-prefix "run-all-tests")
            empty-env (symbol t-prefix "empty-env")]
        `(test-runner* ~opts
           (fn []
-            (~run-all-tests
-              ~(:ns-regex opts)
-              ~@(im/if-cljs &env `[(~empty-env ::TestRunner)] [])))))))
+            ~(im/if-cljs &env
+               `(~run-all-tests ~(:ns-regex opts)
+                  (~empty-env ::TestRunner))
+               `(apply ~run-tests (nss-in-dirs ~(:test-paths opts)))))))))
 
-#?(:cljs (defn test-renderer [opts]
-           (cp/start (renderer/make-test-renderer opts))))
+#?(:cljs
+   (defn test-renderer [opts]
+     (cp/start (renderer/make-test-renderer opts))))
