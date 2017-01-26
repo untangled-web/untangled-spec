@@ -58,7 +58,7 @@
                    (assoc % :stack (-> % :actual .-stack stack->trace))
                    %)))
       (update :actual fix-str)
-      (update :actual fix-str)))
+      (update :expected fix-str)))
 
 (defn make-tests-by-namespace
   [test-name]
