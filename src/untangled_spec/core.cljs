@@ -4,4 +4,5 @@
     [untangled-spec.assertions]
     [untangled-spec.async]
     [untangled-spec.runner] ;;side effects
+    [untangled-spec.selectors]
     [untangled-spec.stub]))

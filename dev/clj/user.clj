@@ -29,7 +29,7 @@
 
 ;; SERVER TESTS
 
-(tools-ns-repl/set-refresh-dirs "src/untangled_spec" "dev/clj" "test/untangled_spec")
+(tools-ns-repl/set-refresh-dirs "src" "dev" "test")
 
 (defn refresh [& args]
   {:pre [(not @system)]}

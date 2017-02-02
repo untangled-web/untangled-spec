@@ -29,11 +29,10 @@
   (let [{:keys [name opts body]} (us/conform! ::specification args)
         var-name (var-name-from-string name)
         prefix (im/if-cljs &env "cljs.test" "clojure.test")]
-    `(~(symbol prefix "deftest")
-       ~(with-meta (symbol (str var-name (gensym)))
-          (zipmap opts (repeat true)))
-       (im/with-reporting {:type :specification :string ~name}
-         ~@body))))
+    `(~(symbol prefix "deftest") ~(symbol (str var-name (gensym)))
+       (im/when-selected-for ~opts
+         (im/with-reporting {:type :specification :string ~name}
+           ~@body)))))
 
 (s/def ::behavior (s/cat
                     :name (constantly true)
@@ -44,10 +43,10 @@
 (defmacro behavior
   "Adds a new string to the list of testing contexts.  May be nested,
    but must occur inside a specification. If the behavior is not machine
-   testable then include the keyword ::manual-test just after the behavior name
+   testable then include the keyword :manual-test just after the behavior name
    instead of code.
 
-   (behavior \"blows up when the moon is full\" ::manual-test)"
+   (behavior \"blows up when the moon is full\" :manual-test)"
   [& args]
   (let [{:keys [name opts body]} (us/conform! ::behavior args)
         typekw (if (contains? opts :manual-test)

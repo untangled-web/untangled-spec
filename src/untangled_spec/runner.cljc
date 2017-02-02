@@ -1,14 +1,19 @@
 (ns untangled-spec.runner
   #?(:cljs
      (:require-macros
+       [cljs.core.async.macros :as a]
        [untangled-spec.runner :refer [define-assert-exprs!]]))
   (:require
+    [clojure.core.async :as a]
     [clojure.test :as t]
     [cljs.test #?@(:cljs (:include-macros true))]
     [com.stuartsierra.component :as cp]
     [untangled-spec.assertions :as ae]
     [untangled-spec.reporter :as reporter]
-    #?@(:cljs ([untangled-spec.renderer :as renderer]))
+    [untangled-spec.selectors :as sel]
+    #?@(:cljs ([untangled.client.mutations :as m]
+               [untangled-spec.renderer :as renderer]
+               [untangled-spec.router :as router]))
     #?@(:clj  ([clojure.java.io :as io]
                [clojure.tools.namespace.repl :as tools-ns-repl]
                [clojure.tools.namespace.find :as tools-ns-find]
@@ -68,20 +73,37 @@
        (map->ChannelListener {})
        [:channel-server :test/reporter])))
 
-(defn- render-tests [{:keys [test/reporter] :as system}]
+(defn- render-tests [{:keys [test/reporter] :as runner}]
   (let [render* #?(:cljs renderer/render-tests :clj send-render-tests-msg)]
-    (render* system {:test-report (reporter/get-test-report reporter)})))
+    (render* runner {:test-report (reporter/get-test-report reporter)})))
 
-(defn- run-tests [system]
-  #?(:clj (tools-ns-repl/refresh))
+(defn run-tests [runner & [{:keys [refresh?]
+                            :or {refresh? true}}]]
+  #?(:clj (when refresh? (tools-ns-repl/refresh)))
+  (reporter/reset-test-report! (:test/reporter runner))
   (reporter/with-untangled-reporting
-    system render-tests
-    ((:test! system))))
+    runner render-tests
+    ((:test! runner))))
 
-(defrecord TestRunner [opts]
+(defrecord TestRunner [chan opts]
   cp/Lifecycle
-  (start [this] (run-tests this) this)
-  (stop [this] this))
+  (start [this]
+    #?(:cljs
+       ;;TODO: is not registered when you reload (first visit) the page?
+       ;; but works when you change the #selectors=[...]
+       ;; this is because TestRunner -dep-> TestRenderer
+       ;; so renderer happens first
+       (defmethod m/mutate 'run-tests/with-new-selectors
+         [_ _ {:keys [selectors]}]
+         {:action #(do
+                     (sel/set-selectors! opts selectors)
+                     (run-tests this))}))
+    (run-tests this)
+    this)
+  (stop [this]
+    #?(:cljs
+       (remove-method m/mutate 'run-tests/with-new-selectors))
+    this))
 
 (defn- make-test-runner [opts test!]
   (cp/using
@@ -89,28 +111,39 @@
     [:test/reporter #?(:cljs :test/renderer :clj :channel-server)]))
 
 (defn test-runner* [opts test!]
-  (cp/start
-    #?(:cljs (cp/system-map
-               :test/renderer (renderer/make-test-renderer {})
+  #?(:cljs (cp/start
+             (cp/system-map
+               :test/renderer (renderer/make-test-renderer {:with-websockets? false})
                :test/runner (make-test-runner opts test!)
-               :test/reporter (reporter/make-test-reporter))
-       :clj (let [api-read (fn [& args] (prn :read args))
-                  api-mutate (fn [& args] (prn :mutate args))]
-              (usc/make-untangled-server
-                :config-path "config/untangled-spec.edn"
-                :parser (oms/parser {:read api-read :mutate api-mutate})
-                :components {:channel-server (wcs/make-channel-server)
-                             :channel-listener (make-channel-listener)
-                             :test/runner (make-test-runner opts test!)
-                             :test/reporter (reporter/make-test-reporter)
-                             :change/watcher (watch/on-change-listener run-tests)}
-                :extra-routes {:routes   ["/" {"chsk" :web-socket
-                                               "server-tests.html" :server-tests}]
-                               :handlers {:web-socket wcs/route-handlers
-                                          :server-tests (fn [{:keys [request]} _match]
-                                                          (prn :match _match)
-                                                          (resp/resource-response "server-tests.html"
-                                                            {:root "public"}))}})))))
+               :test/reporter (reporter/make-test-reporter)
+               :test/router (router/make-router)))
+     :clj (let [system (atom nil)
+                api-read (fn [env k params] {:action #(prn ::read k params)})
+                api-mutate (fn [env k params]
+                             {:action
+                              #(case k
+                                 'run-tests/with-new-selectors
+                                 #_=> (do
+                                        (sel/set-selectors! opts (:selectors params))
+                                        (run-tests (:test/runner @system)
+                                                   {:refresh? false}))
+                                 (prn ::mutate k params))})]
+            (reset! system
+              (cp/start
+                (usc/make-untangled-server
+                  :config-path "config/untangled-spec.edn"
+                  :parser (oms/parser {:read api-read :mutate api-mutate})
+                  :components {:channel-server (wcs/make-channel-server)
+                               :channel-listener (make-channel-listener)
+                               :test/runner (make-test-runner opts test!)
+                               :test/reporter (reporter/make-test-reporter)
+                               :change/watcher (watch/on-change-listener run-tests)}
+                  :extra-routes {:routes   ["/" {"chsk" :web-socket
+                                                 "server-tests.html" :server-tests}]
+                                 :handlers {:web-socket wcs/route-handlers
+                                            :server-tests (fn [{:keys [request]} _match]
+                                                            (resp/resource-response "server-tests.html"
+                                                              {:root "public"}))}}))))))
 
 #?(:clj
    (defn nss-in-dirs [dirs]
@@ -131,4 +164,6 @@
 
 #?(:cljs
    (defn test-renderer [opts]
-     (cp/start (renderer/make-test-renderer opts))))
+     (cp/start (cp/system-map
+                 :test/renderer (renderer/make-test-renderer opts)
+                 :test/router (router/make-router)))))

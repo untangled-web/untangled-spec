@@ -1,8 +1,10 @@
 (ns untangled-spec.renderer
+  (:require-macros
+    [cljs.core.async.macros :as a])
   (:require
-    [bidi.bidi :as bidi]
-    [com.stuartsierra.component :as cp]
+    [clojure.core.async :as a]
     [clojure.string :as str]
+    [com.stuartsierra.component :as cp]
     [goog.dom :as gdom]
     [om.dom :as dom]
     [om.next :as om :refer-macros [defui]]
@@ -217,7 +219,8 @@
   Object
   (render [this]
     (let [{:keys [this-filter current-filter]} (om/props this)]
-      (dom/a #js {:href (str "#" (name this-filter))
+      (dom/a #js {:href "javascript:void(0)"
+                  :onClick #(om/transact! this `[(set-filter ~{:filter this-filter})])
                   :className (if (= this-filter current-filter)
                                "selected" "")}
         (name this-filter)))))
@@ -268,64 +271,47 @@
               (filters current-filter)
               (map #(assoc % :current-filter current-filter))
               (map ui-test-namespace))
-            (:namespaces test-report)))
+            (sort-by :name (:namespaces test-report))))
         (ui-test-count test-report)))))
-
-(defn get-element-or-else [id else]
-  (or (gdom/getElement id)
-      (else id)))
-
-(defmethod m/mutate `set-filter [{:keys [state]} _ {:keys [new-filter]}]
-  {:action #(swap! state assoc :report/filter new-filter)})
 
 (defmethod m/mutate `render-tests [{:keys [state]} _ new-report]
   {:action #(swap! state merge new-report)})
 
-(def app-routes
-  ["" (into {} (map (juxt name identity) (keys filters)))])
-
-(defn set-page! [reconciler]
-  (fn [new-filter]
-    (om/transact! reconciler
-      `[(set-filter ~{:new-filter new-filter})])))
-
-(defn setup-history! [reconciler]
-  (let [history (with-redefs [pushy/update-history!
-                              #(doto %
-                                 (.setUseFragment true)
-                                 (.setPathPrefix "")
-                                 (.setEnabled true))]
-                  (pushy/pushy (set-page! reconciler)
-                    (partial bidi/match-route app-routes)
-                    :identity-fn :handler))]
-    (pushy/start! history)))
-
 (defn render-tests [system test-report]
   (let [app (:app (:test/renderer system))]
-    (om/transact! (:reconciler app)
+    (om/transact! (om/app-root (:reconciler app))
       `[(render-tests ~test-report)])))
 
 (defmethod wn/push-received `render-tests
   [{:keys [reconciler]} {test-report :msg}]
-  (om/transact! reconciler
+  (om/transact! (om/app-root reconciler)
     `[(render-tests ~test-report)]))
 
-(defrecord TestRenderer [root target]
+(defmethod m/mutate `set-page-filter [{:keys [state ast]} k {:keys [filter]}]
+  {:action #(swap! state assoc :report/filter
+              (or (and (contains? filters filter)
+                    filter)
+                  (and (js/console.warn "INVALID FILTER: " (str filter))
+                    :all)))})
+
+(defrecord TestRenderer [root target with-websockets?]
   cp/Lifecycle
   (start [this]
+    (when with-websockets? (defmethod m/mutate 'run-tests/with-new-selectors [_ _ _] {:remote true}))
     (let [app (uc/new-untangled-client
-                :networking (wn/make-channel-client "/chsk"
-                              :global-error-callback (constantly nil))
-                :initial-state {:report/filter :all}
-                :started-callback
-                (fn [{:keys [reconciler]}]
-                  (setup-history! reconciler)))]
+                :networking (and with-websockets?
+                              (wn/make-channel-client "/chsk"
+                                :global-error-callback (constantly nil)))
+                :initial-state {:report/filter :all})]
       (assoc this :app (uc/mount app root target))))
   (stop [this]
+    (when with-websockets?
+      (remove-method m/mutate 'run-tests/with-new-selectors))
     (assoc this :app nil)))
 
 (defn make-test-renderer [opts]
-  (map->TestRenderer
-    (merge {:root TestReport
-            :target "spec-report"}
-      opts)))
+  (let [opts (merge {:root TestReport
+                     :target "spec-report"
+                     :with-websockets? true}
+               opts)]
+    (map->TestRenderer opts)))

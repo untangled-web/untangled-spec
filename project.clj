@@ -3,8 +3,7 @@
   :url ""
   :license {:name "MIT Public License"
             :url  "https://opensource.org/licenses/MIT"}
-  :dependencies [[bidi "2.0.12"]
-                 [cljsjs/react-with-addons "15.0.1-1" :scope "provided"]
+  :dependencies [[cljsjs/react-with-addons "15.0.1-1" :scope "provided"]
                  [colorize "0.1.1" :exclusions [org.clojure/clojure]]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [kibu/pushy "0.3.6"]
@@ -14,7 +13,7 @@
                  [navis/untangled-websockets "0.3.3-SNAPSHOT"]
                  [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
                  [org.clojure/clojurescript "1.9.293" :scope "provided"]
-                 [org.clojure/tools.namespace "0.2.11"]
+                 [org.clojure/tools.namespace "0.3.0-alpha3"]
                  [org.omcljs/om "1.0.0-alpha47" :scope "provided" :exclusions [cljsjs/react]]]
 
   :plugins [[lein-cljsbuild "1.1.5"]
@@ -39,18 +38,18 @@
                                :jar          true
                                :source-paths ["src" "dev" "test"]
                                :figwheel     {:on-jsload cljs.user/on-load}
-                               :compiler     {:main                 cljs.user
-                                              :output-to            "resources/public/js/test/test.js"
-                                              :output-dir           "resources/public/js/test/out"
-                                              :asset-path           "js/test/out"
-                                              :optimizations        :none}}
+                               :compiler     {:main          cljs.user
+                                              :output-to     "resources/public/js/test/test.js"
+                                              :output-dir    "resources/public/js/test/out"
+                                              :asset-path    "js/test/out"
+                                              :optimizations :none}}
                               {:id           "server-tests"
                                :source-paths ["src" "dev" "test"]
-                               :compiler     {:main                 cljs.server-tests
-                                              :output-to            "resources/public/js/test/server-tests.js"
-                                              :output-dir           "resources/public/js/test/server-tests"
-                                              :asset-path           "js/test/server-tests"
-                                              :optimizations        :none}}
+                               :compiler     {:main          cljs.server-tests
+                                              :output-to     "resources/public/js/test/server-tests.js"
+                                              :output-dir    "resources/public/js/test/server-tests"
+                                              :asset-path    "js/test/server-tests"
+                                              :optimizations :none}}
                               ;; FOR CI tests. Runs via doo
                               {:id           "automated-tests"
                                :source-paths ["src" "test"]
@@ -64,7 +63,7 @@
              :server-port 3457}
   :profiles {:dev {:source-paths ["src" "test" "dev"]
                    :repl-options {:init-ns clj.user
-                                  :port    7001
+                                  :port    7007
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[figwheel-sidecar "0.5.8" :exclusions [ring/ring-core http-kit joda-time]]
                                   [com.cemerick/piggieback "0.2.1"]

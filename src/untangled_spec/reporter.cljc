@@ -169,13 +169,15 @@
        :fail :failed
        :test :tested})))
 
+(defn reset-test-report! [{:keys [state path]}]
+  (reset! state (make-testreport))
+  (reset! path  []))
+
 (defrecord TestReporter [state path]
   cp/Lifecycle
   (start [this] this)
   (stop [this]
-    ;; TODO: is this necessary?
-    (reset! state (make-testreport))
-    (reset! path  [])
+    (reset-test-report! this)
     this))
 
 (defn make-test-reporter
@@ -188,7 +190,7 @@
 (defn get-test-report [reporter]
   @(:state reporter))
 
-(defn untangled-report [{:keys [test/reporter] :as system} on-complete]
+(defn untangled-report [{:keys [test/reporter] :as runner} on-complete]
   (fn [t]
     (case (:type t)
       :pass (pass reporter t)
@@ -204,9 +206,9 @@
       :end-manual (end-manual reporter t)
       :begin-provided (begin-provided reporter t)
       :end-provided (end-provided reporter t)
-      :summary (do (summary reporter t) #?(:clj (on-complete system)))
-      #?@(:cljs [:end-run-tests (on-complete system)])
+      :summary (do (summary reporter t) #?(:clj (on-complete runner)))
+      #?@(:cljs [:end-run-tests (on-complete runner)])
       :ok)))
 
-#?(:clj (defmacro with-untangled-reporting [system cb & body]
-          `(binding [t/report (untangled-report ~system ~cb)] ~@body)))
+#?(:clj (defmacro with-untangled-reporting [runner cb & body]
+          `(binding [t/report (untangled-report ~runner ~cb)] ~@body)))

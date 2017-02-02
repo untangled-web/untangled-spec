@@ -1,4 +1,6 @@
-(ns untangled-spec.impl.macros)
+(ns untangled-spec.impl.macros
+  (:require
+    [untangled-spec.selectors :as sel]))
 
 (defn cljs-env?
   "https://github.com/Prismatic/schema/blob/master/src/clj/schema/macros.clj"
@@ -20,3 +22,7 @@
          (~do-report ~(make-msg "begin"))
          ~@body
          (~do-report ~(make-msg "end"))))))
+
+(defmacro when-selected-for [selectors & body]
+  `(when (sel/selected-for? ~selectors)
+     ~@body))

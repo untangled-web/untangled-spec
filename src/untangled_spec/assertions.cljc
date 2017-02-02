@@ -80,10 +80,10 @@
          e# (check-error ~msg e# ~criteria)))))
 
 (defn assert-expr [msg [disp-key & form]]
-  (case (str disp-key)
-    "="       (eq-assert-expr     msg form)
-    "exec"    (fn-assert-expr     msg form)
-    "throws?" (throws-assert-expr msg form)
+  (case disp-key
+    =       (eq-assert-expr     msg form)
+    exec    (fn-assert-expr     msg form)
+    throws? (throws-assert-expr msg form)
     {:type :fail :message msg :actual disp-key
      :expected #{"exec" "eq" "throws?"}}))
 

@@ -1,9 +1,12 @@
 (ns untangled-spec.assertions-spec
   (:require [untangled-spec.core :refer-macros [specification assertions]]))
 
-(specification "assertions blocks work on cljs"
+(specification "clojureSCRIPT tests" :focused
   (assertions
-    :should-reload => :when-changed)
+    :cljs => 9999999
+    ))
+
+(specification "assertions blocks work on cljs"
   (assertions
     "throws arrow can catch"
     (assert false "foobar") =throws=> (js/Error #"ooba")

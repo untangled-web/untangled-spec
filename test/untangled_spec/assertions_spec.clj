@@ -7,6 +7,7 @@
     [untangled-spec.contains :refer [*contains?]]
     [untangled-spec.core
      :refer [specification component behavior assertions]]
+    [untangled-spec.selectors]
     [untangled-spec.impl.macros :as im]
     [untangled-spec.spec :as us]
     [untangled-spec.testing-helpers :as th])
@@ -25,6 +26,12 @@
   (ae/block->asserts false (us/conform! ::ae/block form)))
 
 (def test-regex #"a-simple-test-regex")
+
+(specification "baklusdt" :focused
+  (assertions
+    (when (untangled-spec.selectors/selected-for? [:focused])
+      "SELECTED")
+    => 87))
 
 (specification "check-error"
   (behavior "supports many syntaxes"
