@@ -14,9 +14,7 @@
     #?@(:cljs ([untangled.client.mutations :as m]
                [untangled-spec.renderer :as renderer]
                [untangled-spec.router :as router]))
-    #?@(:clj  ([clojure.java.io :as io]
-               [clojure.tools.namespace.repl :as tools-ns-repl]
-               [clojure.tools.namespace.find :as tools-ns-find]
+    #?@(:clj  ([clojure.tools.namespace.repl :as tools-ns-repl]
                [figwheel-sidecar.system :as fsys]
                [om.next.server :as oms]
                [ring.util.response :as resp]
@@ -105,7 +103,7 @@
       :test/renderer #?(:clj nil :cljs (:renderer opts)))
     [:test/reporter #?(:clj :channel-server)]))
 
-(defn test-runner* [opts test!]
+(defn test-runner [opts test!]
   #?(:cljs (cp/start
              (cp/system-map
                :test/runner (make-test-runner opts test!)
@@ -137,26 +135,3 @@
                                             :server-tests (fn [{:keys [request]} _match]
                                                             (resp/resource-response "server-tests.html"
                                                               {:root "public"}))}}))))))
-
-#?(:clj
-   (defn nss-in-dirs [dirs]
-     (->> dirs (mapcat (comp tools-ns-find/find-namespaces-in-dir io/file)))))
-
-#?(:clj
-   (defmacro test-runner [opts]
-     (let [t-prefix (im/if-cljs &env "cljs.test" "clojure.test")
-           run-tests (symbol t-prefix "run-tests")
-           run-all-tests (symbol t-prefix "run-all-tests")
-           empty-env (symbol t-prefix "empty-env")]
-       `(test-runner* ~opts
-          (fn []
-            ~(im/if-cljs &env
-               `(~run-all-tests ~(:ns-regex opts)
-                  (~empty-env ::TestRunner))
-               `(apply ~run-tests (nss-in-dirs ~(:test-paths opts)))))))))
-
-#?(:cljs
-   (defn test-renderer [opts]
-     (cp/start (cp/system-map
-                 :test/renderer (renderer/make-test-renderer opts)
-                 :test/router (router/make-router)))))

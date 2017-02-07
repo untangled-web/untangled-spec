@@ -67,4 +67,5 @@
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[figwheel-sidecar "0.5.8" :exclusions [ring/ring-core http-kit joda-time]]
                                   [com.cemerick/piggieback "0.2.1"]
-                                  [org.clojure/tools.nrepl "0.2.12"]]}})
+                                  [org.clojure/tools.nrepl "0.2.12"]
+                                  [org.clojure/test.check "0.9.0"]]}})

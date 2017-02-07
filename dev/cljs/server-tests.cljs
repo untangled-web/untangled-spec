@@ -1,9 +1,9 @@
 (ns cljs.server-tests
   (:require
-    [untangled-spec.runner :as runner]
+    [untangled-spec.suite :as suite]
     [untangled-spec.tests-to-run]))
 
 (enable-console-print!)
 
 (defonce runner
-  (runner/test-renderer {}))
+  (suite/test-renderer {}))

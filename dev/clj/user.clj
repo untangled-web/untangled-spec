@@ -4,7 +4,7 @@
     [clojure.tools.namespace.repl :as tools-ns-repl]
     [com.stuartsierra.component :as cp]
     [figwheel-sidecar.system :as fsys]
-    [untangled-spec.runner :as runner]))
+    [untangled-spec.suite :as suite]))
 
 (def figwheel-config (fsys/fetch-config))
 (def figwheel (atom nil))
@@ -36,12 +36,10 @@
 
 (defn start []
   (reset! system
-    (runner/test-runner
-      {:test-paths ["test"]
-       :selectors {:default (complement :integration)
-                   :integration :integration
-                   :focused :focused}
-       :ns-regex #"untangled-spec.*-spec"})))
+    (suite/test-suite ["test"]
+      {:default (complement :integration)
+       :integration :integration
+       :focused :focused})))
 
 (defn stop []
   (when @system
