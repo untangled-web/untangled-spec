@@ -40,10 +40,6 @@
             (runner/run-tests (:test/runner test-system#)))))))
 
 #?(:clj
-   (defn- nss-in-dirs [dirs]
-     (->> dirs (mapcat (comp tools-ns-find/find-namespaces-in-dir io/file)))))
-
-#?(:clj
    (let []
      (defmacro test-suite [test-paths selectors]
        (when (im/cljs-env? &env)
@@ -53,5 +49,8 @@
          `(runner/test-runner ~{:test-paths test-paths
                                 :selectors selectors}
             (fn []
-              (apply ~run-tests
-                (nss-in-dirs ~test-paths))))))))
+              (let [nss-in-dirs#
+                    (partial mapcat
+                      (comp tools-ns-find/find-namespaces-in-dir io/file))]
+                (apply ~run-tests
+                  (nss-in-dirs# ~test-paths)))))))))
