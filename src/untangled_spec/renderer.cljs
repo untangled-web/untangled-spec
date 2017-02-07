@@ -278,7 +278,7 @@
   {:action #(swap! state merge new-report)})
 
 (defn render-tests [system test-report]
-  (let [app (:app (:test/renderer system))]
+  (let [app (:app (:test/renderer (:test/renderer system)))]
     (om/transact! (om/app-root (:reconciler app))
       `[(render-tests ~test-report)])))
 
@@ -294,10 +294,15 @@
                   (and (js/console.warn "INVALID FILTER: " (str filter))
                     :all)))})
 
-(defrecord TestRenderer [root target with-websockets?]
+(defrecord TestRenderer [root target with-websockets? selectors-chan]
   cp/Lifecycle
   (start [this]
-    (when with-websockets? (defmethod m/mutate 'run-tests/with-new-selectors [_ _ _] {:remote true}))
+    (defmethod m/mutate 'run-tests/with-new-selectors
+      [_ _ {:keys [selectors]}]
+      ;;TODO each :action should update ui accordingly
+      (if with-websockets?
+        {:remote true}
+        {:action #(when selectors (a/go (a/>! selectors-chan selectors)))}))
     (let [app (uc/new-untangled-client
                 :networking (and with-websockets?
                               (wn/make-channel-client "/chsk"
@@ -305,8 +310,7 @@
                 :initial-state {:report/filter :all})]
       (assoc this :app (uc/mount app root target))))
   (stop [this]
-    (when with-websockets?
-      (remove-method m/mutate 'run-tests/with-new-selectors))
+    (remove-method m/mutate 'run-tests/with-new-selectors)
     (assoc this :app nil)))
 
 (defn make-test-renderer [opts]

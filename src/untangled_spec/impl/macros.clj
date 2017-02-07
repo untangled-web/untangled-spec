@@ -9,6 +9,14 @@
 (defn if-cljs [env cljs clj]
   (if (cljs-env? env) cljs clj))
 
+(defmacro try-report [block & body]
+  (let [prefix (if-cljs &env "cljs.test" "clojure.test")
+        do-report (symbol prefix "do-report")]
+    `(try ~@body
+       (catch ~(if-cljs &env (symbol "js" "Object") (symbol "Throwable"))
+         e# (~do-report {:type :fail :actual (str e#)
+                         :message ~block :expected "IT TO NOT THROW!"})))))
+
 (defmacro with-reporting
   "Wraps body in a begin-* and an end-* do-report if the msg contains a :type"
   [msg & body]

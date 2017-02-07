@@ -17,7 +17,6 @@
 
 (defn fn-assert-expr [msg [f arg :as form]]
   `(let [arg# ~arg
-         ;;TODO: catch do-report or prints?
          result# (~f arg#)]
      {:type (if result# :pass :fail)
       :message ~msg :assert-type '~'exec
@@ -26,7 +25,7 @@
 (defn eq-assert-expr [msg [exp act :as form]]
   `(let [act# ~act
          exp# ~exp
-         result# (= exp# act#)]
+         result# (im/try-report ~msg (= exp# act#))]
      {:type (if result# :pass :fail)
       :message ~msg :assert-type '~'eq
       :actual act# :expected exp#}))

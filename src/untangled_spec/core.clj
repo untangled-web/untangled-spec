@@ -27,12 +27,15 @@
    When *load-tests* is false, the specification is ignored."
   [& args]
   (let [{:keys [name opts body]} (us/conform! ::specification args)
-        var-name (var-name-from-string name)
+        test-name (-> (var-name-from-string name)
+                    (str (gensym))
+                    symbol)
         prefix (im/if-cljs &env "cljs.test" "clojure.test")]
-    `(~(symbol prefix "deftest") ~(symbol (str var-name (gensym)))
-       (im/when-selected-for ~opts
-         (im/with-reporting {:type :specification :string ~name}
-           ~@body)))))
+    `(~(symbol prefix "deftest") ~test-name
+       (im/try-report ~name
+         (im/when-selected-for ~opts
+           (im/with-reporting {:type :specification :string ~name}
+             ~@body))))))
 
 (s/def ::behavior (s/cat
                     :name (constantly true)

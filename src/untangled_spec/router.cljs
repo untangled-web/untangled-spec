@@ -50,6 +50,7 @@
   (stop [this]
     (remove-method m/mutate `renderer/set-filter)
     this))
+
 (defn make-router []
   (cp/using
     (map->Router {})

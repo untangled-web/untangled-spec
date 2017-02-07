@@ -85,38 +85,31 @@
     runner render-tests
     ((:test! runner))))
 
-(defrecord TestRunner [chan opts]
+(defrecord TestRunner [opts]
   cp/Lifecycle
   (start [this]
-    #?(:cljs
-       ;;TODO: is not registered when you reload (first visit) the page?
-       ;; but works when you change the #selectors=[...]
-       ;; this is because TestRunner -dep-> TestRenderer
-       ;; so renderer happens first
-       (defmethod m/mutate 'run-tests/with-new-selectors
-         [_ _ {:keys [selectors]}]
-         {:action #(do
-                     (sel/set-selectors! opts selectors)
-                     (run-tests this))}))
-    (run-tests this)
-    this)
+    (let [#?@(:cljs
+               [sel-chan (a/go-loop [selectors (a/<! (:selectors-chan opts))]
+                           (sel/set-selectors! opts selectors)
+                           (run-tests this)
+                           (recur (a/<! (:selectors-chan opts))))])]
+      (run-tests this)
+      #?(:clj this :cljs (assoc this :close-me sel-chan))))
   (stop [this]
-    #?(:cljs
-       (remove-method m/mutate 'run-tests/with-new-selectors))
+    #?(:cljs (a/close! (:close-me this)))
     this))
 
 (defn- make-test-runner [opts test!]
   (cp/using
-    (map->TestRunner {:opts opts :test! test!})
-    [:test/reporter #?(:cljs :test/renderer :clj :channel-server)]))
+    (assoc (map->TestRunner {:opts opts :test! test!})
+      :test/renderer #?(:clj nil :cljs (:renderer opts)))
+    [:test/reporter #?(:clj :channel-server)]))
 
 (defn test-runner* [opts test!]
   #?(:cljs (cp/start
              (cp/system-map
-               :test/renderer (renderer/make-test-renderer {:with-websockets? false})
                :test/runner (make-test-runner opts test!)
-               :test/reporter (reporter/make-test-reporter)
-               :test/router (router/make-router)))
+               :test/reporter (reporter/make-test-reporter)))
      :clj (let [system (atom nil)
                 api-read (fn [env k params] {:action #(prn ::read k params)})
                 api-mutate (fn [env k params]

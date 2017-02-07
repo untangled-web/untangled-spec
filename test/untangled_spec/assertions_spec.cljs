@@ -1,11 +1,6 @@
 (ns untangled-spec.assertions-spec
   (:require [untangled-spec.core :refer-macros [specification assertions]]))
 
-(specification "clojureSCRIPT tests" :focused
-  (assertions
-    :cljs => 9999999
-    ))
-
 (specification "assertions blocks work on cljs"
   (assertions
     "throws arrow can catch"
