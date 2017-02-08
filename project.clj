@@ -16,8 +16,9 @@
                  [org.clojure/tools.namespace "0.3.0-alpha3"]
                  [org.omcljs/om "1.0.0-alpha47" :scope "provided" :exclusions [cljsjs/react]]]
 
-  :plugins [[lein-cljsbuild "1.1.5"]
-            [lein-doo "0.1.6"] ; for cljs CI tests
+  :plugins [[com.jakemccrary/lein-test-refresh "0.18.1" :exclusions [org.clojure/tools.namespace]]
+            [lein-cljsbuild "1.1.5"]
+            [lein-doo "0.1.6"] ;; for cljs CI tests
             [lein-figwheel "0.5.8" :exclusions [ring/ring-core commons-fileupload clj-time joda-time org.clojure/clojure org.clojure/tools.reader]]
             [lein-shell "0.5.0"]]
 
@@ -27,7 +28,12 @@
   :test-paths ["test"]
   :resource-paths ["src" "resources"]
 
-  ; CI tests: Set up to support karma runner. Recommend running against chrome. See README
+  ;; this for backwards compatability, should now use untangled-spec.suite/test-suite & see dev/clj/user.clj for an example
+  :test-refresh {:report untangled-spec.reporters.terminal/untangled-report
+                 :changes-only true
+                 :with-repl true}
+
+  ;; CI tests: Set up to support karma runner. Recommend running against chrome. See README
   :doo {:build "automated-tests"
         :paths {:karma "node_modules/karma/bin/karma"}}
 

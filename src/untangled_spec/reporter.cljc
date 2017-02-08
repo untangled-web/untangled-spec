@@ -190,7 +190,7 @@
 (defn get-test-report [reporter]
   @(:state reporter))
 
-(defn untangled-report [{:keys [test/reporter] :as runner} on-complete]
+(defn untangled-report [{:keys [test/reporter] :as system} on-complete]
   (fn [t]
     (case (:type t)
       :pass (pass reporter t)
@@ -206,9 +206,10 @@
       :end-manual (end-manual reporter t)
       :begin-provided (begin-provided reporter t)
       :end-provided (end-provided reporter t)
-      :summary (do (summary reporter t) #?(:clj (on-complete runner)))
-      #?@(:cljs [:end-run-tests (on-complete runner)])
+      :summary (do (summary reporter t) #?(:clj (on-complete system)))
+      #?@(:cljs [:end-run-tests (on-complete system)])
       :ok)))
 
-#?(:clj (defmacro with-untangled-reporting [runner cb & body]
-          `(binding [t/report (untangled-report ~runner ~cb)] ~@body)))
+#?(:clj
+   (defmacro with-untangled-reporting [system on-complete & body]
+     `(binding [t/report (untangled-report ~system ~on-complete)] ~@body)))
