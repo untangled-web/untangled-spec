@@ -7,7 +7,12 @@
     [com.stuartsierra.component :as cp]
     [untangled-spec.diff :refer [diff]])
   #?(:clj
-     (:import (java.util UUID))))
+     (:import
+       (java.text SimpleDateFormat)
+       (java.util Date UUID))
+     :cljs
+     (:import
+       (goog.date Date))))
 
 (defn new-uuid []
   #?(:clj (UUID/randomUUID)
@@ -19,6 +24,9 @@
     nil "nil"
     s))
 
+(defn now-time []
+  #?(:clj (System/currentTimeMillis) :cljs (js/Date.now)))
+
 (defn make-testreport
   ([] (make-testreport []))
   ([initial-items]
@@ -28,7 +36,8 @@
     :tested 0
     :passed 0
     :failed 0
-    :error 0}))
+    :error 0
+    :start-time (now-time)}))
 
 (defn make-testitem
   [test-name]
@@ -163,6 +172,13 @@
 (defn end-provided [this t] (pop-test-item-path this))
 
 (defn summary [{:keys [state]} t]
+  (let [end-time (now-time)
+        end-date (new Date)]
+    (swap! state
+      (fn [{:as st :keys [start-time]}]
+        (-> st
+          (assoc :end-time end-date)
+          (assoc :run-time (- end-time start-time))))))
   (swap! state merge
     (set/rename-keys t
       {:pass :passed
@@ -171,7 +187,7 @@
 
 (defn reset-test-report! [{:keys [state path]}]
   (reset! state (make-testreport))
-  (reset! path  []))
+  (reset! path []))
 
 (defrecord TestReporter [state path]
   cp/Lifecycle
@@ -185,7 +201,7 @@
   []
   (map->TestReporter
     {:state (atom (make-testreport))
-     :path  (atom [])}))
+     :path (atom [])}))
 
 (defn get-test-report [reporter]
   @(:state reporter))

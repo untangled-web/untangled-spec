@@ -4,6 +4,7 @@
   (:require
     [clojure.core.async :as a]
     [clojure.string :as str]
+    [goog.string :as gstr]
     [com.stuartsierra.component :as cp]
     [goog.dom :as gdom]
     [om.dom :as dom]
@@ -13,7 +14,10 @@
     [untangled.client.mutations :as m]
     [untangled-spec.dom.edn-renderer :refer [html-edn]]
     [untangled-spec.diff :as diff]
-    [untangled.websockets.networking :as wn]))
+    [untangled.websockets.networking :as wn])
+  (:import
+    (goog.date DateTime)
+    (goog.i18n DateTimeFormat NumberFormat)))
 
 (enable-console-print!)
 
@@ -255,7 +259,21 @@
             passed " passed "
             failed " failed "
             error  " errors"))))))
-(def ui-test-count (om/factory TestCount {:keyfn identity}))
+(def ui-test-count (om/factory TestCount {:keyfn #(gensym "test-count")}))
+
+(defui ^:once TestTiming
+  Object
+  (render [this]
+    (let [{:keys [end-time run-time]} (om/props this)
+          end-time (.format (new DateTimeFormat "HH:mm:ss.SSS")
+                     (or end-time (new DateTime)))
+          run-time (gstr/format "%.3fs"
+                     (float (/ run-time 1000)))]
+      (dom/div #js {:className "test-timing"}
+        (dom/h2 nil
+          (str "Finished at " end-time
+            " (run time: " run-time ")"))))))
+(def ui-test-timing (om/factory TestTiming {:keyfn #(gensym "test-timing")}))
 
 (defui ^:once TestReport
   static om/IQuery
@@ -272,7 +290,8 @@
               (map #(assoc % :current-filter current-filter))
               (map ui-test-namespace))
             (sort-by :name (:namespaces test-report))))
-        (ui-test-count test-report)))))
+        (ui-test-count test-report)
+        (ui-test-timing test-report)))))
 
 (defmethod m/mutate `render-tests [{:keys [state]} _ new-report]
   {:action #(swap! state merge new-report)})
