@@ -1,7 +1,6 @@
 (ns untangled-spec.stub
-  #?(:clj
-     (:require [clojure.test :refer (is)]))
-  #?(:cljs (:require-macros [cljs.test :refer (is)])))
+  (:require
+    [clojure.spec :as s]))
 
 (defn make-step [stub times literals]
   {:stub stub :times times
@@ -37,6 +36,21 @@
                       (= lit arg))))
           true (zip-pad gensym literals args)))))
 
+(defn ?spec-validate [VAR spec-type x]
+  (when-let [fspec (some-> VAR s/get-spec)]
+    (when-let [spec (get fspec spec-type)]
+      (when-not (case spec-type
+                  :fn (let [{:keys [args ret]} fspec]
+                        (if-not (and args ret) true
+                          (s/valid? spec
+                            (-> x
+                              (update :args (partial s/conform args))
+                              (update :ret (partial s/conform ret))))))
+                  (s/valid? spec x))
+        (throw
+          (ex-info (s/explain-str spec x)
+            (s/explain-data spec x)))))))
+
 (defn scripted-stub [script-atom]
   (let [step (atom 0)]
     (fn [& args]
@@ -54,7 +68,12 @@
             (swap! script-atom
               #(-> % (update :history conj args)
                  (update-in [:steps curr-step :history] conj args)))
-            (try (apply stub args)
+            (?spec-validate function :args args)
+            (try
+              (let [ret (apply stub args)]
+                (?spec-validate function :ret ret)
+                (?spec-validate function :fn {:args args :ret ret})
+                ret)
               (catch #?(:clj Exception :cljs js/Object) e (throw e))
               (finally
                 (increment-script-call-count script-atom curr-step)

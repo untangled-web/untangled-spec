@@ -46,7 +46,7 @@
   (let [parse-steps
         (fn parse-steps [[mock-name steps :as group]]
           (let [symgen (gensym "script")]
-            {:script `(stub/make-script ~(name mock-name)
+            {:script `(stub/make-script (var ~mock-name)
                         ~(mapv (fn make-step [{:keys [stub-function ntimes literals]}]
                                  `(stub/make-step ~stub-function ~ntimes ~literals))
                            steps))
