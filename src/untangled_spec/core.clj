@@ -63,6 +63,25 @@
   "An alias for behavior. Makes some specification code easier to read where a given specification is describing subcomponents of a whole."
   [& args] `(behavior ~@args))
 
+(defmacro provided
+  "A macro for using a Midje-style provided clause within any testing framework. This macro rewrites
+   assertion-style mocking statements into code that can do that mocking.
+   See the doc string for `p/parse-arrow-count`."
+  [string & forms]
+  (p/provided-fn (im/cljs-env? &env) string forms))
+
+(defmacro when-mocking
+  "A macro that works just like 'provided', but requires no string and outputs no extra text in the test output.
+   See the doc string for `p/parse-arrow-count`."
+  [& forms]
+  (p/provided-fn (im/cljs-env? &env) :skip-output forms))
+
+(s/fdef assertions :args ::ae/assertions)
+(defmacro assertions [& forms]
+  (let [blocks (ae/fix-conform (us/conform! ::ae/assertions forms))
+        asserts (map (partial ae/block->asserts (im/cljs-env? &env)) blocks)]
+    `(do ~@asserts true)))
+
 (defmacro with-timeline
   "Adds the infrastructure required for doing timeline testing"
   [& forms]
@@ -81,22 +100,3 @@
    Must be wrapped by with-timeline."
   [tm]
   `(async/advance-clock ~'*async-queue* ~tm))
-
-(defmacro provided
-  "A macro for using a Midje-style provided clause within any testing framework. This macro rewrites
-   assertion-style mocking statements into code that can do that mocking.
-   See the doc string for `p/parse-arrow-count`."
-  [string & forms]
-  (apply p/provided-fn (im/cljs-env? &env) string forms))
-
-(defmacro when-mocking
-  "A macro that works just like 'provided', but requires no string and outputs no extra text in the test output.
-   See the doc string for `p/parse-arrow-count`."
-  [& forms]
-  (apply p/provided-fn (im/cljs-env? &env) :skip-output forms))
-
-(s/fdef assertions :args ::ae/assertions)
-(defmacro assertions [& forms]
-  (let [blocks (ae/fix-conform (us/conform! ::ae/assertions forms))
-        asserts (map (partial ae/block->asserts (im/cljs-env? &env)) blocks)]
-    `(do ~@asserts true)))

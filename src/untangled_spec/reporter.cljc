@@ -173,7 +173,7 @@
 
 (defn summary [{:keys [state]} t]
   (let [end-time (now-time)
-        end-date (new Date)]
+        end-date (.getTime (new Date))]
     (swap! state
       (fn [{:as st :keys [start-time]}]
         (-> st

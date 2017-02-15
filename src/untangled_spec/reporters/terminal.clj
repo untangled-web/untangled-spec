@@ -72,9 +72,6 @@
   (print (pretty/format-exception e {:frame-limit (env :frame-limit)}))
   (some-> (.getCause e) print-throwable))
 
-(defmethod print-method Throwable [e w]
-  (print-method (c/red e) w))
-
 (defn pretty-str [s n]
   (as-> (with-out-str (pprint s)) s
     (clojure.string/split s #"\n")
@@ -196,19 +193,23 @@
 (defn print-report-data
   "Prints the current report data from the report data state and applies colors based on test results"
   [reporter]
-  (t/with-test-out
-    (let [{:keys [namespaces tested passed failed error]} (base/get-test-report reporter)]
-      (println "Running tests for:" (map :name namespaces))
-      (try (->> namespaces
-             (into [] when-fail-only-keep-failed)
-             (sort-by :name)
-             (mapv print-namespace))
-        (catch Exception e
-          (when-not (->> e ex-data ::stop?)
-            (print-throwable e))))
-      (println "\nRan" tested "tests containing"
-        (+ passed failed error) "assertions.")
-      (println failed "failures," error "errors."))))
+  (do
+    (defmethod print-method Throwable [e w]
+      (print-method (c/red e) w))
+    (t/with-test-out
+      (let [{:keys [namespaces tested passed failed error]} (base/get-test-report reporter)]
+        (println "Running tests for:" (map :name namespaces))
+        (try (->> namespaces
+               (into [] when-fail-only-keep-failed)
+               (sort-by :name)
+               (mapv print-namespace))
+          (catch Exception e
+            (when-not (->> e ex-data ::stop?)
+              (print-throwable e))))
+        (println "\nRan" tested "tests containing"
+          (+ passed failed error) "assertions.")
+        (println failed "failures," error "errors.")))
+    (remove-method print-method Throwable)))
 
 (def this
   (cp/start (base/make-test-reporter)))

@@ -7,6 +7,7 @@
     untangled-spec.dom.events-spec
     untangled-spec.dom.util-spec
     untangled-spec.provided-spec
+    untangled-spec.selectors-spec
     untangled-spec.stub-spec
     untangled-spec.timeline-spec))
 

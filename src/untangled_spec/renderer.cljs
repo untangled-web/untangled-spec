@@ -4,6 +4,7 @@
   (:require
     [clojure.core.async :as a]
     [clojure.string :as str]
+    [cognitect.transit :as transit]
     [goog.string :as gstr]
     [com.stuartsierra.component :as cp]
     [goog.dom :as gdom]
@@ -266,7 +267,8 @@
   (render [this]
     (let [{:keys [end-time run-time]} (om/props this)
           end-time (.format (new DateTimeFormat "HH:mm:ss.SSS")
-                     (or end-time (new DateTime)))
+                     (or (and end-time (.setTime (new DateTime) end-time))
+                         (new DateTime)))
           run-time (gstr/format "%.3fs"
                      (float (/ run-time 1000)))]
       (dom/div #js {:className "test-timing"}
@@ -276,6 +278,9 @@
 (def ui-test-timing (om/factory TestTiming {:keyfn #(gensym "test-timing")}))
 
 (defui ^:once TestReport
+  static uc/InitialAppState
+  (initial-state [this _] {:ui/react-key (gensym "UI_REACT_KEY")
+                           :report/filter :all})
   static om/IQuery
   (query [this] [:ui/react-key :test-report :report/filter])
   Object
@@ -308,10 +313,9 @@
 
 (defmethod m/mutate `set-page-filter [{:keys [state ast]} k {:keys [filter]}]
   {:action #(swap! state assoc :report/filter
-              (or (and (contains? filters filter)
-                    filter)
-                  (and (js/console.warn "INVALID FILTER: " (str filter))
-                    :all)))})
+              (or (and (nil? filter) :all)
+                  (and (contains? filters filter) filter)
+                  (do (js/console.warn "INVALID FILTER: " (str filter)) :all)))})
 
 (defrecord TestRenderer [root target with-websockets? selectors-chan]
   cp/Lifecycle
@@ -324,17 +328,17 @@
         {:action #(when selectors (a/go (a/>! selectors-chan selectors)))}))
     (let [app (uc/new-untangled-client
                 :networking (and with-websockets?
-                              (wn/make-channel-client "/chsk"
-                                :global-error-callback (constantly nil)))
-                :initial-state {:report/filter :all})]
+                              (wn/make-channel-client "/_untangled_spec_chsk"
+                                :global-error-callback (constantly nil))))]
       (assoc this :app (uc/mount app root target))))
   (stop [this]
     (remove-method m/mutate 'run-tests/with-new-selectors)
     (assoc this :app nil)))
 
-(defn make-test-renderer [opts]
-  (let [opts (merge {:root TestReport
-                     :target "spec-report"
-                     :with-websockets? true}
-               opts)]
-    (map->TestRenderer opts)))
+(defn make-test-renderer [{:keys [with-websockets? selectors-chan] :or {with-websockets? true}}]
+  (map->TestRenderer
+    {:with-websockets? with-websockets?
+     :selectors-chan selectors-chan
+     ;; unconfigurables
+     :root TestReport
+     :target "untangled-spec-report"}))

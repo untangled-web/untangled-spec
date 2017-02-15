@@ -80,7 +80,7 @@
     :body (s/+ ::us/any)))
 
 (defn provided-fn
-  [cljs? string & forms]
+  [cljs? string forms]
   (let [{:keys [mocks body]} (us/conform! ::mocks forms)
         scripts (parse-mocks mocks)
         skip-output? (= :skip-output string)]

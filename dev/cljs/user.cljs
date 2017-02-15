@@ -1,14 +1,11 @@
 (ns cljs.user
   (:require
-    [clojure.core.async :as a]
-    [untangled-spec.suite :as suite]
-    [untangled-spec.tests-to-run]))
+    [untangled-spec.tests-to-run]
+    [untangled-spec.suite :as ts]))
 
 (enable-console-print!)
 
-(suite/def-test-suite untangled-spec #"untangled-spec.*-spec"
+(ts/def-test-suite on-load #"untangled-spec\..*-spec"
   {:default (complement :integration)
    :integration :integration
    :focused :focused})
-
-(def on-load untangled-spec)

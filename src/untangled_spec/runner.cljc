@@ -15,7 +15,8 @@
                [untangled-spec.renderer :as renderer]
                [untangled-spec.router :as router]))
     #?@(:clj  ([clojure.tools.namespace.repl :as tools-ns-repl]
-               [figwheel-sidecar.system :as fsys]
+               [clojure.walk :as walk]
+               [cognitect.transit :as transit]
                [om.next.server :as oms]
                [ring.util.response :as resp]
                [untangled-spec.impl.macros :as im]
@@ -40,10 +41,25 @@
 (define-assert-exprs!)
 
 #?(:clj
+   (defmethod print-method Throwable [e w]
+     (print-method (str e) w)))
+
+#?(:clj
+   ;;TODO encode anything not transit serializable with pr-str (maybe just str?)
+   ;; make sure we can use (defmethod print-method ...) to change a new type's rep
+   (defn- ensure-encodable [tr]
+     (letfn [(encodable? [x]
+               (some #(% x)
+                     [number? string? symbol? keyword? sequential?
+                      (every-pred map? (comp not record?))]))]
+       (walk/postwalk #(if (encodable? %) % (pr-str %)) tr))))
+
+#?(:clj
    (defn- send-render-tests-msg
      ([system tr cid]
       (let [cs (:channel-server system)]
-        (ws/push cs cid `untangled-spec.renderer/render-tests tr)))
+        (ws/push cs cid 'untangled-spec.renderer/render-tests
+          (ensure-encodable tr))))
      ([system tr]
       (->> system :channel-server
         :connected-cids deref :any
@@ -122,16 +138,16 @@
             (reset! system
               (cp/start
                 (usc/make-untangled-server
-                  :config-path "config/untangled-spec.edn"
+                  :config-path "config/untangled-spec-server-tests-config.edn"
                   :parser (oms/parser {:read api-read :mutate api-mutate})
                   :components {:channel-server (wcs/make-channel-server)
                                :channel-listener (make-channel-listener)
                                :test/runner (make-test-runner opts test!)
                                :test/reporter (reporter/make-test-reporter)
                                :change/watcher (watch/on-change-listener run-tests)}
-                  :extra-routes {:routes   ["/" {"chsk" :web-socket
-                                                 "server-tests.html" :server-tests}]
+                  :extra-routes {:routes   ["/" {"_untangled_spec_chsk" :web-socket
+                                                 "untangled-spec-server-tests.html" :server-tests}]
                                  :handlers {:web-socket wcs/route-handlers
                                             :server-tests (fn [{:keys [request]} _match]
-                                                            (resp/resource-response "server-tests.html"
+                                                            (resp/resource-response "untangled-spec-server-tests.html"
                                                               {:root "public"}))}}))))))

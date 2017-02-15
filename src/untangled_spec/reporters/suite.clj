@@ -1,6 +1,6 @@
 (ns untangled-spec.reporters.suite
   (:require
-    [untangled-spec.suite :as suite]))
+    [untangled-spec.suite :as ts]))
 
 (defmacro deftest-all-suite [suite-name regex & [selectors]]
-  `(suite/def-test-suite ~suite-name ~regex ~(or selectors {})))
+  `(ts/def-test-suite ~suite-name ~regex ~(or selectors {})))

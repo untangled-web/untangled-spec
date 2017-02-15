@@ -28,9 +28,6 @@
 
 ;; SERVER TESTS
 
-;; causes problems, needs further investigation
-;(tools-ns-repl/set-refresh-dirs "src" "dev" "test")
-
 (defn refresh [& args]
   {:pre [(not @system)]}
   (apply tools-ns-repl/refresh args))
