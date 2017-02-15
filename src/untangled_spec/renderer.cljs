@@ -22,12 +22,12 @@
 
 (enable-console-print!)
 
-(defn itemclass [{:keys [failed error passed manual]}]
+(defn itemclass [{:keys [fail error pass manual]}]
   (str "test-"
     (cond
-      (pos? failed) "failed"
+      (pos? fail) "fail"
       (pos? error) "error"
-      (pos? passed) "passed"
+      (pos? pass) "pass"
       (pos? manual) "manual"
       :else "pending")))
 
@@ -55,12 +55,12 @@
   (let [report-as (fn [status] #(update % :status select-keys [status]))
         no-test-results #(dissoc % :test-results)]
     {:all (map identity)
-     :failing (filter (comp #(some pos? %) (juxt :failed :error) :status))
+     :failing (filter (comp #(some pos? %) (juxt :fail :error) :status))
      :manual  (comp (filter (has-status? #(-> % :manual pos?)))
                 (map no-test-results)
                 (map (report-as :manual)))
-     :passing (comp (filter (comp pos? :passed :status))
-                (map (report-as :passed)))
+     :passing (comp (filter (comp pos? :pass :status))
+                (map (report-as :pass)))
      :pending (comp (filter (has-status? #(->> % vals (apply +) zero?)))
                 (map no-test-results)
                 (map (report-as :pending)))}))
@@ -248,17 +248,17 @@
 (defui ^:once TestCount
   Object
   (render [this]
-    (let [{:keys [passed failed error namespaces]} (om/props this)
-          total (+ passed failed error)]
-      (if (pos? (+ failed error))
+    (let [{:keys [pass fail error namespaces]} (om/props this)
+          total (+ pass fail error)]
+      (if (pos? (+ fail error))
         (change-favicon-to-color "#d00")
         (change-favicon-to-color "#0d0"))
       (dom/div #js {:className "test-count"}
         (dom/h2 nil
           (str "Tested " (count namespaces) " namespaces containing "
             total  " assertions. "
-            passed " passed "
-            failed " failed "
+            pass   " passed "
+            fail   " failed "
             error  " errors"))))))
 (def ui-test-count (om/factory TestCount {:keyfn #(gensym "test-count")}))
 

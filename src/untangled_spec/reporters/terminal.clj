@@ -57,9 +57,9 @@
                                      (str exp " != " got)))
                        nil)
                      (condp (fn [p x] (pos? (p x 0))) status
-                       :failed c/red
+                       :fail c/red
                        :error  c/red
-                       :passed c/green
+                       :pass c/green
                        c/reset))]
     (apply color-fn strings)))
 
@@ -130,7 +130,7 @@
 
 (defn print-where [w s print-fn]
   (let [status->str {:error "Error"
-                     :failed "Failed"}]
+                     :fail "Failed"}]
     (->> (s/replace w #"G__\d+" "")
          (str (status->str s) " in ")
          (color-str :where)
@@ -161,7 +161,7 @@
 
 (def when-fail-only-keep-failed
   (filter #(if-not (env :fail-only?) true
-             (or (pos? (:failed (:status %) 0))
+             (or (pos? (:fail (:status %) 0))
                  (pos? (:error (:status %) 0))))))
 
 (defn print-test-item [test-item print-level]
@@ -170,7 +170,7 @@
       (color-str (:status test-item)
         (:name test-item)))
     (into []
-      (comp (filter (comp #{:failed :error} :status))
+      (comp (filter (comp #{:fail :error} :status))
         (map #(print-test-result % (->> print-level inc space-level
                                      (partial println))
                 (inc print-level))))
@@ -197,7 +197,7 @@
     (defmethod print-method Throwable [e w]
       (print-method (c/red e) w))
     (t/with-test-out
-      (let [{:keys [namespaces tested passed failed error]} (base/get-test-report reporter)]
+      (let [{:keys [namespaces test pass fail error]} (base/get-test-report reporter)]
         (println "Running tests for:" (map :name namespaces))
         (try (->> namespaces
                (into [] when-fail-only-keep-failed)
@@ -206,14 +206,15 @@
           (catch Exception e
             (when-not (->> e ex-data ::stop?)
               (print-throwable e))))
-        (println "\nRan" tested "tests containing"
-          (+ passed failed error) "assertions.")
-        (println failed "failures," error "errors.")))
-    (remove-method print-method Throwable)))
+        (println "\nRan" test "tests containing"
+          (+ pass fail error) "assertions.")
+        (println fail "failures," error "errors.")))
+    (remove-method print-method Throwable)
+    reporter))
 
 (def this
   (cp/start (base/make-test-reporter)))
 
 (def untangled-report
   (base/untangled-report {:test/reporter this}
-    (comp print-report-data :test/reporter)))
+    (comp base/reset-test-report! print-report-data :test/reporter)))

@@ -62,7 +62,7 @@
     color: gray;
 }
 
-.test-passed {
+.test-pass {
     color: limegreen;
 }
 
@@ -70,7 +70,7 @@
     color: red;
 }
 
-.test-failed {
+.test-fail {
     color: red;
 }
 

@@ -31,13 +31,10 @@
   ([] (make-testreport []))
   ([initial-items]
    {:id (new-uuid)
-    :summary ""
     :namespaces []
-    :tested 0
-    :passed 0
-    :failed 0
-    :error 0
-    :start-time (now-time)}))
+    :start-time (now-time)
+    :test 0 :pass 0
+    :fail 0 :error 0}))
 
 (defn make-testitem
   [test-name]
@@ -123,11 +120,11 @@
   (failure* this t :error))
 
 (defn fail [this t]
-  (failure* this t :failed))
+  (failure* this t :fail))
 
 (defn pass [this t]
   (inc-report-counter :pass)
-  (set-test-result this :passed))
+  (set-test-result this :pass))
 
 (defn push-test-item-path [{:keys [path]} test-item index]
   (swap! path conj :test-items index))
@@ -179,11 +176,7 @@
         (-> st
           (assoc :end-time end-date)
           (assoc :run-time (- end-time start-time))))))
-  (swap! state merge
-    (set/rename-keys t
-      {:pass :passed
-       :fail :failed
-       :test :tested})))
+  (swap! state merge t))
 
 (defn reset-test-report! [{:keys [state path]}]
   (reset! state (make-testreport))
