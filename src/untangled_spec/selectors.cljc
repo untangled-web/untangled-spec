@@ -7,39 +7,36 @@
 #?(:clj (tools-ns-repl/disable-reload!))
 
 (defonce active-selectors
-  (atom {}))
+  (atom []))
 
-(defn get-selectors! []
-  @active-selectors)
-
-(s/def ::active-selectors
-  (s/map-of keyword? ifn?))
-(s/def ::selectors
-  (s/nilable (s/coll-of keyword?)))
+(s/def ::available (s/coll-of keyword? :kind set?))
+(s/def ::default ::available)
+(s/def ::selectors (s/keys :req-un [::available] :opt-un [::default]))
+(s/def ::active-selectors ::available)
+(s/def ::test-selectors (s/nilable ::available))
 
 (s/fdef set-selectors*
   :args (s/cat
           :available-selectors ::active-selectors
-          :selectors ::selectors)
+          :test-selectors ::test-selectors)
   :ret ::active-selectors)
-(defn set-selectors* [available-selectors selectors]
-  (select-keys available-selectors selectors))
+(defn set-selectors* [available-selectors test-selectors]
+  (set/intersection available-selectors test-selectors))
 
-(defn set-selectors! [{available-selectors :selectors} selectors]
+(defn set-selectors! [available-selectors test-selectors]
   (reset! active-selectors
-    (set-selectors* available-selectors selectors)))
+    (set-selectors* available-selectors test-selectors)))
 
 (s/fdef selected-for?*
   :args (s/cat
           :active-selectors ::active-selectors
-          :selectors ::selectors)
+          :test-selectors ::test-selectors)
   :ret boolean?)
-(defn selected-for?* [active-selectors selectors]
+(defn selected-for?* [active-selectors test-selectors]
   (boolean
-    (or (empty? active-selectors)
-        (and (seq selectors)
-          ((apply every-pred (vals active-selectors))
-           (zipmap selectors (repeat true)))))))
+    (seq (set/intersection active-selectors
+           (if (empty? test-selectors)
+             #{::none} test-selectors)))))
 
-(defn selected-for? [selectors]
-  (selected-for?* @active-selectors selectors))
+(defn selected-for? [test-selectors]
+  (selected-for?* @active-selectors test-selectors))

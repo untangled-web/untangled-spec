@@ -5,12 +5,14 @@
        [untangled-spec.runner :refer [define-assert-exprs!]]))
   (:require
     [clojure.core.async :as a]
+    [clojure.spec :as s]
     [clojure.test :as t]
     [cljs.test #?@(:cljs (:include-macros true))]
     [com.stuartsierra.component :as cp]
     [untangled-spec.assertions :as ae]
     [untangled-spec.reporter :as reporter]
     [untangled-spec.selectors :as sel]
+    [untangled-spec.spec :as us]
     #?@(:cljs ([untangled.client.mutations :as m]
                [untangled-spec.renderer :as renderer]
                [untangled-spec.router :as router]))
@@ -104,7 +106,7 @@
   (start [this]
     (let [#?@(:cljs
                [sel-chan (a/go-loop [selectors (a/<! (:selectors-chan opts))]
-                           (sel/set-selectors! opts selectors)
+                           (sel/set-selectors! (:selectors opts) selectors)
                            (run-tests this)
                            (recur (a/<! (:selectors-chan opts))))])]
       (run-tests this)
@@ -119,6 +121,16 @@
       :test/renderer #?(:clj nil :cljs (:renderer opts)))
     [:test/reporter #?(:clj :channel-server)]))
 
+(s/def ::test-paths (s/coll-of string?))
+(let [chan-type (type (a/chan))]
+  (s/def ::selectors-chan #(= (type %) chan-type)))
+(s/def ::renderer (every-pred :test/renderer :test/router))
+(s/def ::ns-regex ::us/regex)
+(s/fdef test-runner
+  :args (s/cat
+          :opts (s/keys :req-un [::sel/selectors]
+                        :opt-un [::test-paths ::selectors-chan ::renderer ::ns-regex])
+          :test! fn?))
 (defn test-runner [opts test!]
   #?(:cljs (cp/start
              (cp/system-map
@@ -131,7 +143,7 @@
                               #(case k
                                  'run-tests/with-new-selectors
                                  #_=> (do
-                                        (sel/set-selectors! opts (:selectors params))
+                                        (sel/set-selectors! (:selectors opts) (:selectors params))
                                         (run-tests (:test/runner @system)
                                                    {:refresh? false}))
                                  (prn ::mutate k params))})]

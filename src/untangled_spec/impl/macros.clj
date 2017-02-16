@@ -31,6 +31,9 @@
          ~@body
          (~do-report ~(make-msg "end"))))))
 
-(defmacro when-selected-for [selectors & body]
+(defmacro when-selected-for
+  "Only runs body if it is selectors for based on the passed in selectors.
+   See untangled-spec.selectors for more info."
+  [selectors & body]
   `(when (sel/selected-for? ~selectors)
      ~@body))

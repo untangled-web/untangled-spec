@@ -2,46 +2,35 @@
   (:require
     [clojure.spec :as s]
     [clojure.spec.test :as st]
-    [untangled-spec.core :refer [specification behavior assertions]]
+    [untangled-spec.core :refer [specification behavior component assertions]]
     [untangled-spec.selectors :as sel]))
 
-(st/instrument)
+;;TODO FIXME breaks reporting, just 'empty' ns reports
+;(st/instrument)
 
 (specification "selectors"
-  (assertions
-    (sel/set-selectors* {:a :a :b :b :focused :focused} [:focused])
-    => {:focused :focused}
+  (component "set-selectors"
+    (assertions
+      (sel/set-selectors* #{:a :b :focused} #{:focused}) => #{:focused}))
 
-    ;; base case
-    (sel/selected-for?* {} nil)
-    => true
-    (sel/selected-for?* {} [])
-    => true
+  (component "selected-for?"
+    (assertions
+      "if there are no selectors on the test, only selected if ::sel/none is active"
+      (sel/selected-for?* #{} nil) => false
+      (sel/selected-for?* #{} #{}) => false
+      (sel/selected-for?* #{::sel/none} nil) => true
+      (sel/selected-for?* #{::sel/none} #{}) => true
 
-    ;; not selected if there are active selectors but none declared
-    (sel/selected-for?* {:focused :focused} [])
-    => false
+      "active selectors only apply on tests that have the selector"
+      (sel/selected-for?* #{:focused} #{}) => false
+      (sel/selected-for?* #{:focused} nil) => false
+      (sel/selected-for?* #{:focused} #{:focused}) => true
 
-    ;; always selected if there are no active selectors
-    (sel/selected-for?* {} [:focused])
-    => true
-    (sel/selected-for?* {} [(keyword (gensym))])
-    => true
+      "only selected if it's an active selector"
+      (sel/selected-for?* #{} #{:focused}) => false
+      (sel/selected-for?* #{:focused} #{:focused}) => true
+      (sel/selected-for?* #{:focused} #{(keyword (gensym))}) => false
 
-    ;; selected if passes an active selector
-    (sel/selected-for?* {:focused :focused} [:focused])
-    => true
-    (sel/selected-for?* {:focused :focused} [(keyword (gensym "SELECTOR"))])
-    => false
-
-    ;; active selector values can be any `ifn?`
-    (sel/selected-for?* {:default (complement :integration)} [:unit])
-    => true
-    (sel/selected-for?* {:default (complement :integration)} [:integration])
-    => false
-
-    ;; must pass all active selectors
-    (sel/selected-for?* {:a :a :b :b} [:a])
-    => false
-    (sel/selected-for?* {:a :a :b :b} [:a :b])
-    => true))
+      "must pass at least one active selector"
+      (sel/selected-for?* #{:unit :focused} #{:focused}) => true
+      (sel/selected-for?* #{:unit :focused} #{:qa}) => false)))
