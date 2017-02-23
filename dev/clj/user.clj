@@ -1,31 +1,10 @@
 (ns clj.user
   (:require
-    [clj.system :refer [system]]
+    [clj.system :refer [figwheel system start-figwheel]]
     [clojure.tools.namespace.repl :as tools-ns-repl]
     [com.stuartsierra.component :as cp]
-    [figwheel-sidecar.system :as fsys]
     [untangled-spec.suite :as suite]
     [untangled-spec.selectors :as sel]))
-
-(def figwheel-config (fsys/fetch-config))
-(def figwheel (atom nil))
-
-(defn start-figwheel
-  "Start Figwheel on the given builds, or defaults to build-ids in `figwheel-config`."
-  ([]
-   (let [props (System/getProperties)
-         all-builds (->> figwheel-config :data :all-builds (mapv :id))]
-     (start-figwheel (keys (select-keys props all-builds)))))
-  ([build-ids]
-   (let [default-build-ids (-> figwheel-config :data :build-ids)
-         build-ids (if (empty? build-ids) default-build-ids build-ids)
-         preferred-config (assoc-in figwheel-config [:data :build-ids] build-ids)]
-     (reset! figwheel (cp/system-map
-                        :css-watcher (fsys/css-watcher {:watch-paths ["resources/public/css"]})
-                        :figwheel-system (fsys/figwheel-system preferred-config)))
-     (println "STARTING FIGWHEEL ON BUILDS: " build-ids)
-     (swap! figwheel cp/start)
-     (fsys/cljs-repl (:figwheel-system @figwheel)))))
 
 ;; SERVER TESTS
 
@@ -35,7 +14,7 @@
 
 (defn start []
   (reset! system
-    (suite/test-suite ["test"]
+    (suite/test-suite {:source-paths ["src"] :test-paths ["test"]}
       {:default #{::sel/none :focused}
        :available #{:focused :unit :integration}})))
 

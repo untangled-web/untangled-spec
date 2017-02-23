@@ -1,15 +1,16 @@
 (ns untangled-spec.watch
   (:require
     [clojure.tools.namespace.dir :as tools-ns-dir]
+    [clojure.tools.namespace.find :refer [clj]]
     [clojure.tools.namespace.track :as tools-ns-track]
     [com.stuartsierra.component :as cp]))
 
-(defn- make-change-tracker []
-  (tools-ns-track/tracker))
+(defn- make-change-tracker [watch-dirs]
+  (tools-ns-dir/scan-dirs (tools-ns-track/tracker) watch-dirs {:platform clj}))
 
 (let [prev-failed (atom nil)]
   (defn- scan-for-changes [tracker watch-dirs]
-    (try (let [new-tracker (apply tools-ns-dir/scan tracker watch-dirs)]
+    (try (let [new-tracker (tools-ns-dir/scan-dirs tracker watch-dirs {:platform clj})]
            (reset! prev-failed false)
            new-tracker)
          (catch Exception e
@@ -27,15 +28,17 @@
            (binding [*ns* ns#]
              ~@body))))))
 
-(defrecord ChangeListener [watching? run-tests]
+(defn something-changed? [new-tracker curr-tracker]
+  (not= new-tracker curr-tracker))
+
+(defrecord ChangeListener [watching? watch-dirs run-tests]
   cp/Lifecycle
   (start [this]
     (async
-      (loop [tracker (make-change-tracker)]
-        (let [new-tracker (scan-for-changes tracker [])
-              something-changed? (not= new-tracker tracker)]
+      (loop [tracker (make-change-tracker watch-dirs)]
+        (let [new-tracker (scan-for-changes tracker watch-dirs)]
           (when @watching?
-            (when something-changed?
+            (when (something-changed? new-tracker tracker)
               (try (run-tests (:test/runner this))
                 (catch Exception e (.printStackTrace e))))
             (do (Thread/sleep 200)
@@ -47,9 +50,10 @@
     (reset! watching? false)
     this))
 
-(defn on-change-listener [run-tests]
+(defn on-change-listener [{:keys [source-paths test-paths]} run-tests]
   (cp/using
     (map->ChangeListener
       {:watching? (atom true)
+       :watch-dirs (concat source-paths test-paths)
        :run-tests run-tests})
     [:test/runner]))

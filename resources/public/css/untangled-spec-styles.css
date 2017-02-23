@@ -28,6 +28,15 @@
     font-size: 18pt;
 }
 
+.test-namespace a {
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.foldable a {
+    cursor: pointer;
+}
+
 .test-header {
     font-weight: 700;
     display: block;
@@ -38,19 +47,28 @@
     color: orange;
 }
 
-.filter-controls {
+.test-controls {
     position: fixed;
     top: 0px;
     right: 0px;
+    background: rgba(255, 255, 255, 1);
+    font-size: 15pt;
 }
 
+.filter-controls { }
+
 .filter-controls label {
-    font-size: 10pt;
 }
 
 .filter-controls a {
-    font-size: 10pt;
     padding-left: 5pt;
+}
+
+.selector-controls { }
+
+.selector-controls ul {
+  list-style-type: none;
+  margin: 0;
 }
 
 .selected {
@@ -89,8 +107,10 @@
     font-weight: bold;
 }
 
-.test-count {
-    margin: 20px 0 20px 20px;
+.test-summary {
+    position: fixed;
+    bottom: 0px;
+    background:#fff;
 }
 
 .test-report ul {

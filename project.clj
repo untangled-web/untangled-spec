@@ -8,12 +8,11 @@
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [kibu/pushy "0.3.6"]
                  [lein-doo "0.1.6" :scope "test"]
-                 [navis/untangled-client "0.6.0"]
+                 [navis/untangled-client "0.7.1-SNAPSHOT"]
                  [navis/untangled-server "0.7.0-SNAPSHOT" :exclusions [com.taoensso/timbre]]
                  [navis/untangled-websockets "0.3.3-SNAPSHOT"]
                  [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
                  [org.clojure/clojurescript "1.9.473" :scope "provided"]
-                 [org.clojure/core.async "0.2.395"]
                  [org.clojure/tools.namespace "0.3.0-alpha3"]
                  [org.omcljs/om "1.0.0-alpha47" :scope "provided" :exclusions [cljsjs/react]]]
 

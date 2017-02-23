@@ -5,10 +5,9 @@
     [untangled-spec.core :refer [specification behavior component assertions]]
     [untangled-spec.selectors :as sel]))
 
-;;TODO FIXME breaks reporting, just 'empty' ns reports
-;(st/instrument)
+(st/instrument)
 
-(specification "selectors"
+(specification "selectors" :focused
   (component "set-selectors"
     (assertions
       (sel/set-selectors* #{:a :b :focused} #{:focused}) => #{:focused}))

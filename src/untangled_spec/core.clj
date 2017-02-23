@@ -8,6 +8,7 @@
     [untangled-spec.impl.macros :as im]
     [untangled-spec.provided :as p]
     [untangled-spec.runner] ;;side effects
+    [untangled-spec.selectors :as sel]
     [untangled-spec.stub]
     [untangled-spec.spec :as us]))
 
@@ -17,7 +18,7 @@
 (s/def ::specification
   (s/cat
     :name string?
-    :opts (s/* keyword?)
+    :selectors (s/* keyword?)
     :body (s/* ::us/any)))
 
 (s/fdef specification :args ::specification)
@@ -26,14 +27,14 @@
    description. Technically outputs a deftest with additional output reporting.
    When *load-tests* is false, the specification is ignored."
   [& args]
-  (let [{:keys [name opts body]} (us/conform! ::specification args)
+  (let [{:keys [name selectors body]} (us/conform! ::specification args)
         test-name (-> (var-name-from-string name)
                     (str (gensym))
                     symbol)
         prefix (im/if-cljs &env "cljs.test" "clojure.test")]
     `(~(symbol prefix "deftest") ~test-name
        (im/try-report ~name
-         (im/when-selected-for ~opts
+         (im/when-selected-for ~(us/conform! ::sel/test-selectors selectors)
            (im/with-reporting {:type :specification :string ~name}
              ~@body))))))
 

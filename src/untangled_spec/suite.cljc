@@ -2,7 +2,6 @@
   #?(:cljs (:require-macros
              [untangled-spec.suite]))
   (:require
-    [clojure.core.async :as a]
     [com.stuartsierra.component :as cp]
     [untangled-spec.runner :as runner]
     #?@(:cljs ([untangled-spec.renderer :as renderer]
@@ -15,9 +14,10 @@
    (defn test-renderer
      "For explicit use in creating a renderer for server tests"
      [& [opts]]
-     (cp/start (cp/system-map
-                 :test/renderer (renderer/make-test-renderer opts)
-                 :test/router (router/make-router)))))
+     (cp/start
+       (cp/system-map
+         :test/renderer (renderer/make-test-renderer opts)
+         :test/router (router/make-router)))))
 
 #?(:clj
    (defmacro def-test-suite
@@ -27,19 +27,17 @@
      (when-not (im/cljs-env? &env)
        (throw (ex-info "CANNOT BE USED FOR ANYTHING BUT CLOJURESCRIPT" {})))
      `(do
-        (defonce selectors-chan# (cljs.core.async/chan 10))
         (defonce renderer#
           (test-renderer
-            {:selectors-chan selectors-chan#
-             :with-websockets? false}))
-        (def test-system# (runner/test-runner
-                            {:ns-regex ~regex
-                             :renderer renderer#
-                             :selectors-chan selectors-chan#
-                             :selectors ~selectors}
-                            (fn []
-                              (cljs.test/run-all-tests ~regex
-                                (cljs.test/empty-env ::TestRunner)))))
+            {:with-websockets? false}))
+        (def test-system#
+          (runner/test-runner
+            {:ns-regex ~regex
+             :selectors ~selectors}
+            (fn []
+              (cljs.test/run-all-tests ~regex
+                (cljs.test/empty-env ::TestRunner)))
+            renderer#))
         (defn ~suite-name [& _#]
           (runner/run-tests (:test/runner test-system#))))))
 
@@ -47,14 +45,13 @@
    (defmacro test-suite
      "For use in defining a server (clojure) test suite.
       Returns a system that can be `start`-ed and `stop`-ed."
-     [test-paths selectors]
+     [{:as opts :keys [test-paths]} selectors]
      (when (im/cljs-env? &env)
        (throw (ex-info "CANNOT BE USED FOR ANYTHING BUT CLOJURE" {})))
-     `(runner/test-runner ~{:test-paths test-paths
-                            :selectors selectors}
+     `(runner/test-runner ~(merge opts {:selectors selectors})
         (fn []
-          (let [nss-in-dirs#
-                (partial mapcat
-                  (comp tools-ns-find/find-namespaces-in-dir io/file))]
-            (apply clojure.test/run-tests
-              (nss-in-dirs# ~test-paths)))))))
+          (let [test-nss#
+                (mapcat (comp tools-ns-find/find-namespaces-in-dir io/file)
+                  ~test-paths)]
+            (apply require test-nss#)
+            (apply clojure.test/run-tests test-nss#))))))

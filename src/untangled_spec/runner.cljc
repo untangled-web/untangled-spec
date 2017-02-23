@@ -1,10 +1,8 @@
 (ns untangled-spec.runner
   #?(:cljs
      (:require-macros
-       [cljs.core.async.macros :as a]
        [untangled-spec.runner :refer [define-assert-exprs!]]))
   (:require
-    [clojure.core.async :as a]
     [clojure.spec :as s]
     [clojure.test :as t]
     [cljs.test #?@(:cljs (:include-macros true))]
@@ -13,7 +11,8 @@
     [untangled-spec.reporter :as reporter]
     [untangled-spec.selectors :as sel]
     [untangled-spec.spec :as us]
-    #?@(:cljs ([untangled.client.mutations :as m]
+    #?@(:cljs ([om.next :as om]
+               [untangled.client.mutations :as m]
                [untangled-spec.renderer :as renderer]
                [untangled-spec.router :as router]))
     #?@(:clj  ([clojure.tools.namespace.repl :as tools-ns-repl]
@@ -47,8 +46,6 @@
      (print-method (str e) w)))
 
 #?(:clj
-   ;;TODO encode anything not transit serializable with pr-str (maybe just str?)
-   ;; make sure we can use (defmethod print-method ...) to change a new type's rep
    (defn- ensure-encodable [tr]
      (letfn [(encodable? [x]
                (some #(% x)
@@ -57,24 +54,21 @@
        (walk/postwalk #(if (encodable? %) % (pr-str %)) tr))))
 
 #?(:clj
-   (defn- send-render-tests-msg
-     ([system tr cid]
+   (defn- send-renderer-msg
+     ([system k edn cid]
       (let [cs (:channel-server system)]
-        (ws/push cs cid 'untangled-spec.renderer/render-tests
-          (ensure-encodable tr))))
-     ([system tr]
+        (ws/push cs cid k
+          (ensure-encodable edn))))
+     ([system k edn]
       (->> system :channel-server
         :connected-cids deref :any
-        (mapv (partial send-render-tests-msg system tr))))))
+        (mapv (partial send-renderer-msg system k edn))))))
 
 #?(:clj
    (defrecord ChannelListener [channel-server]
      ws/WSListener
      (client-dropped [this cs cid] this)
-     (client-added [this cs cid]
-       (send-render-tests-msg
-         this {:test-report (reporter/get-test-report (:test/reporter this))} cid))
-
+     (client-added [this cs cid] this)
      cp/Lifecycle
      (start [this]
        (wcs/add-listener wcs/listeners this)
@@ -89,12 +83,16 @@
        (map->ChannelListener {})
        [:channel-server :test/reporter])))
 
-(defn- render-tests [{:keys [test/reporter] :as runner}]
-  (let [render* #?(:cljs renderer/render-tests :clj send-render-tests-msg)]
-    (render* runner {:test-report (reporter/get-test-report reporter)})))
+(defn- novelty! [system mut-key novelty]
+  #?(:cljs (om/transact! (om/app-root (get-in system [:test/renderer :test/renderer :app :reconciler]))
+             `[(~mut-key ~novelty)])
+     :clj (send-renderer-msg system mut-key novelty)))
 
-(defn run-tests [runner & [{:keys [refresh?]
-                            :or {refresh? true}}]]
+(defn- render-tests [{:keys [test/reporter] :as runner}]
+  (novelty! runner 'untangled-spec.renderer/render-tests
+    (reporter/get-test-report reporter)))
+
+(defn run-tests [runner & [{:keys [refresh?] :or {refresh? true}}]]
   #?(:clj (when refresh? (tools-ns-repl/refresh)))
   (reporter/reset-test-report! (:test/reporter runner))
   (reporter/with-untangled-reporting
@@ -104,46 +102,61 @@
 (defrecord TestRunner [opts]
   cp/Lifecycle
   (start [this]
-    (let [#?@(:cljs
-               [sel-chan (a/go-loop [selectors (a/<! (:selectors-chan opts))]
-                           (sel/set-selectors! (:selectors opts) selectors)
-                           (run-tests this)
-                           (recur (a/<! (:selectors-chan opts))))])]
-      (run-tests this)
-      #?(:clj this :cljs (assoc this :close-me sel-chan))))
+    #?(:cljs (let [runner-atom (-> this :test/renderer :test/renderer :runner-atom)]
+               (reset! runner-atom this)))
+    (sel/initialize-selectors! (:selectors opts))
+    this)
   (stop [this]
-    #?(:cljs (a/close! (:close-me this)))
     this))
 
-(defn- make-test-runner [opts test!]
+(defn- make-test-runner [opts test! & [extra]]
   (cp/using
-    (assoc (map->TestRunner {:opts opts :test! test!})
-      :test/renderer #?(:clj nil :cljs (:renderer opts)))
+    (merge (map->TestRunner {:opts opts :test! test!})
+      extra)
     [:test/reporter #?(:clj :channel-server)]))
 
 (s/def ::test-paths (s/coll-of string?))
-(let [chan-type (type (a/chan))]
-  (s/def ::selectors-chan #(= (type %) chan-type)))
-(s/def ::renderer (every-pred :test/renderer :test/router))
+(s/def ::source-paths (s/coll-of string?))
 (s/def ::ns-regex ::us/regex)
 (s/fdef test-runner
   :args (s/cat
-          :opts (s/keys :req-un [::sel/selectors]
-                        :opt-un [::test-paths ::selectors-chan ::renderer ::ns-regex])
-          :test! fn?))
-(defn test-runner [opts test!]
+          :opts (s/keys :req-un [#?@(:cljs [::ns-regex])
+                                 #?@(:clj [::source-paths ::test-paths])
+                                 ::sel/selectors])
+          :test! fn?
+          :renderer (s/? any?)))
+(defn test-runner [opts test! & [renderer]]
   #?(:cljs (cp/start
              (cp/system-map
-               :test/runner (make-test-runner opts test!)
+               :test/runner (make-test-runner opts test!
+                              {:test/renderer renderer
+                               :read (fn [runner k params]
+                                       {:value
+                                        (case k
+                                          ::sel/initial-selectors @sel/initial-selectors
+                                          (prn ::read k params))})
+                               :mutate (fn [runner k params]
+                                         {:action
+                                          #(case k
+                                             `sel/change-active
+                                             #_=> (do
+                                                    (sel/set-selectors!
+                                                      (:selectors params))
+                                                    (run-tests runner {:refresh? false}))
+                                             (prn ::mutate k params))})})
                :test/reporter (reporter/make-test-reporter)))
      :clj (let [system (atom nil)
-                api-read (fn [env k params] {:action #(prn ::read k params)})
+                api-read (fn [env k params]
+                           {:value
+                            (case k
+                              ::sel/initial-selectors @sel/initial-selectors
+                              (prn ::read k params))})
                 api-mutate (fn [env k params]
                              {:action
                               #(case k
-                                 'run-tests/with-new-selectors
+                                 `sel/change-active
                                  #_=> (do
-                                        (sel/set-selectors! (:selectors opts) (:selectors params))
+                                        (sel/set-selectors! (:selectors params))
                                         (run-tests (:test/runner @system)
                                                    {:refresh? false}))
                                  (prn ::mutate k params))})]
@@ -156,7 +169,7 @@
                                :channel-listener (make-channel-listener)
                                :test/runner (make-test-runner opts test!)
                                :test/reporter (reporter/make-test-reporter)
-                               :change/watcher (watch/on-change-listener run-tests)}
+                               :change/watcher (watch/on-change-listener opts run-tests)}
                   :extra-routes {:routes   ["/" {"_untangled_spec_chsk" :web-socket
                                                  "untangled-spec-server-tests.html" :server-tests}]
                                  :handlers {:web-socket wcs/route-handlers

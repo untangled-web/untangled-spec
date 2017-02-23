@@ -1,8 +1,5 @@
 (ns untangled-spec.renderer
-  (:require-macros
-    [cljs.core.async.macros :as a])
   (:require
-    [clojure.core.async :as a]
     [clojure.string :as str]
     [cognitect.transit :as transit]
     [goog.string :as gstr]
@@ -12,17 +9,20 @@
     [om.next :as om :refer-macros [defui]]
     [pushy.core :as pushy]
     [untangled.client.core :as uc]
+    [untangled.client.data-fetch :as df]
+    [untangled.client.impl.network :as un]
     [untangled.client.mutations :as m]
     [untangled-spec.dom.edn-renderer :refer [html-edn]]
     [untangled-spec.diff :as diff]
+    [untangled-spec.selectors :as sel]
     [untangled.websockets.networking :as wn])
   (:import
     (goog.date DateTime)
-    (goog.i18n DateTimeFormat NumberFormat)))
+    (goog.i18n DateTimeFormat)))
 
 (enable-console-print!)
 
-(defn itemclass [{:keys [fail error pass manual]}]
+(defn test-item-class [{:keys [fail error pass manual]}]
   (str "test-"
     (cond
       (pos? fail) "fail"
@@ -72,9 +72,8 @@
     (let [{:keys [folded?]} (om/get-state this)
           {:keys [render]} (om/props this)
           {:keys [title value classes]} (render folded?)]
-      (dom/div nil
-        (dom/a #js {:href "javascript:void(0);"
-                    :className classes
+      (dom/div #js {:className "foldable"}
+        (dom/a #js {:className classes
                     :onClick #(om/update-state! this update :folded? not)}
           (if folded? \u25BA \u25BC)
           (if folded?
@@ -183,9 +182,9 @@
   Object
   (render [this]
     (let [{:keys [current-filter] :as test-item-data} (om/props this)]
-      (dom/li #js {:className "test-item "}
+      (dom/li #js {:className "test-item"}
         (dom/div nil
-          (dom/span #js {:className (itemclass (:status test-item-data))}
+          (dom/span #js {:className (test-item-class (:status test-item-data))}
             (:name test-item-data))
           (dom/ul #js {:className "test-list"}
             (mapv ui-test-result
@@ -207,10 +206,8 @@
           {:keys [folded?]} (om/get-state this)]
       (dom/li #js {:className "test-item"}
         (dom/div #js {:className "test-namespace"}
-          (dom/a #js {:href "javascript:void(0)"
-                      :style #js {:textDecoration "none"} ;; TODO: refactor to css
-                      :onClick #(om/update-state! this update :folded? not)}
-            (dom/h2 #js {:className (itemclass (:status tests-by-namespace))}
+          (dom/a #js {:onClick #(om/update-state! this update :folded? not)}
+            (dom/h2 #js {:className (test-item-class (:status tests-by-namespace))}
               (if folded? \u25BA \u25BC)
               " Testing " (str (:name tests-by-namespace))))
           (dom/ul #js {:className (if folded? "hidden" "test-list")}
@@ -220,7 +217,7 @@
               (:test-items tests-by-namespace))))))))
 (def ui-test-namespace (om/factory TestNamespace {:keyfn :name}))
 
-(defui ^:once FilterSelector
+(defui ^:once FilterControl
   Object
   (render [this]
     (let [{:keys [this-filter current-filter]} (om/props this)]
@@ -229,7 +226,7 @@
                   :className (if (= this-filter current-filter)
                                "selected" "")}
         (name this-filter)))))
-(def ui-filter-selector (om/factory FilterSelector {:keyfn identity}))
+(def ui-filter-control (om/factory FilterControl {:keyfn identity}))
 
 (defui ^:once Filters
   Object
@@ -241,7 +238,7 @@
           (comp (map #(hash-map
                         :this-filter %
                         :current-filter current-filter))
-            (map ui-filter-selector))
+            (map ui-filter-control))
           (keys filters))))))
 (def ui-filters (om/factory Filters {}))
 
@@ -254,10 +251,11 @@
         (change-favicon-to-color "#d00")
         (change-favicon-to-color "#0d0"))
       (dom/div #js {:className "test-count"}
-        (dom/h2 nil
+        (dom/div nil
           (str "Tested " (count namespaces) " namespaces containing "
-            total  " assertions. "
-            pass   " passed "
+            total  " assertions. "))
+        (dom/div nil
+          (str pass   " passed "
             fail   " failed "
             error  " errors"))))))
 (def ui-test-count (om/factory TestCount {:keyfn #(gensym "test-count")}))
@@ -272,73 +270,90 @@
           run-time (gstr/format "%.3fs"
                      (float (/ run-time 1000)))]
       (dom/div #js {:className "test-timing"}
-        (dom/h2 nil
+        (dom/div nil
           (str "Finished at " end-time
             " (run time: " run-time ")"))))))
 (def ui-test-timing (om/factory TestTiming {:keyfn #(gensym "test-timing")}))
+
+(defui ^:once TestSelectors
+  static om/IQuery
+  (query [this] [:available :active :default])
+  Object
+  (render [this]
+    (let [{:keys [active available default]} (om/props this)
+          is-active? (fn [sel] (contains? active sel))]
+      (dom/div #js {:className "selector-controls"}
+        (dom/ul nil
+          (map #(dom/li #js {:key (str %)}
+                  (dom/input #js {:id (str %) :type "checkbox"
+                                  :checked (is-active? %)
+                                  :onChange (fn [e]
+                                              (om/transact! this
+                                                `[(sel/set-selector
+                                                    ~{:selector %
+                                                      :checked? (.. e -target -checked)})]))})
+                  (dom/label #js {:for (str %)} (str %)))
+            (sort-by name available)))))))
+(def ui-test-selectors (om/factory TestSelectors {:keyfn #(gensym "test-selectors")}))
 
 (defui ^:once TestReport
   static uc/InitialAppState
   (initial-state [this _] {:ui/react-key (gensym "UI_REACT_KEY")
                            :report/filter :all})
   static om/IQuery
-  (query [this] [:ui/react-key :test-report :report/filter])
+  (query [this] [:ui/react-key :test-report :report/filter {:selectors (om/get-query TestSelectors)}])
   Object
   (render [this]
-    (let [{:keys [test-report ui/react-key] current-filter :report/filter} (om/props this)]
+    (let [{:keys [ui/react-key test-report selectors] current-filter :report/filter} (om/props this)]
       (dom/section #js {:key react-key :className "test-report"}
-        (ui-filters {:current-filter current-filter})
-        (dom/ul #js {:className "test-list"}
-          (sequence
-            (comp
-              (filters current-filter)
-              (map #(assoc % :current-filter current-filter))
-              (map ui-test-namespace))
-            (sort-by :name (:namespaces test-report))))
-        (ui-test-count test-report)
-        (ui-test-timing test-report)))))
+        (dom/div #js {:className "test-controls"}
+          (ui-filters {:current-filter current-filter})
+          (ui-test-selectors selectors))
+        (dom/div #js {:className "test-list-container"}
+          (dom/ul #js {:className "test-list"}
+            (sequence
+              (comp
+                (filters current-filter)
+                (map #(assoc % :current-filter current-filter))
+                (map ui-test-namespace))
+              (sort-by :name (:namespaces test-report)))))
+        (dom/div #js {:className "test-summary"}
+          (ui-test-count test-report)
+          (ui-test-timing test-report))))))
 
 (defmethod m/mutate `render-tests [{:keys [state]} _ new-report]
-  {:action #(swap! state merge new-report)})
-
-(defn render-tests [system test-report]
-  (let [app (:app (:test/renderer (:test/renderer system)))]
-    (om/transact! (om/app-root (:reconciler app))
-      `[(render-tests ~test-report)])))
-
+  {:action #(swap! state assoc :test-report new-report)})
 (defmethod wn/push-received `render-tests
   [{:keys [reconciler]} {test-report :msg}]
   (om/transact! (om/app-root reconciler)
     `[(render-tests ~test-report)]))
 
-(defmethod m/mutate `set-page-filter [{:keys [state ast]} k {:keys [filter]}]
-  {:action #(swap! state assoc :report/filter
-              (or (and (nil? filter) :all)
-                  (and (contains? filters filter) filter)
-                  (do (js/console.warn "INVALID FILTER: " (str filter)) :all)))})
-
-(defrecord TestRenderer [root target with-websockets? selectors-chan]
+(defrecord TestRenderer [root target with-websockets? runner-atom]
   cp/Lifecycle
   (start [this]
-    (defmethod m/mutate 'run-tests/with-new-selectors
-      [_ _ {:keys [selectors]}]
-      ;;TODO each :action should update ui accordingly
-      (if with-websockets?
-        {:remote true}
-        {:action #(when selectors (a/go (a/>! selectors-chan selectors)))}))
     (let [app (uc/new-untangled-client
-                :networking (and with-websockets?
-                              (wn/make-channel-client "/_untangled_spec_chsk"
-                                :global-error-callback (constantly nil))))]
+                :networking (if with-websockets?
+                              (wn/make-channel-client "/_untangled_spec_chsk")
+                              (reify un/UntangledNetwork
+                                (start [this app] this)
+                                (send [this edn ok err]
+                                  (ok
+                                    ((om/parser @runner-atom)
+                                     @runner-atom edn)))))
+                :started-callback
+                (fn [app]
+                  (df/load app ::sel/initial-selectors TestSelectors
+                    {:target [:selectors] :without #{:active}
+                     :post-mutation `sel/set-selectors-from-url
+                     :post-mutation-params {:prev-selectors (get-in @(om/app-state (:reconciler app))
+                                                                    [:selectors :active])}})))]
       (assoc this :app (uc/mount app root target))))
   (stop [this]
-    (remove-method m/mutate 'run-tests/with-new-selectors)
     (assoc this :app nil)))
 
-(defn make-test-renderer [{:keys [with-websockets? selectors-chan] :or {with-websockets? true}}]
+(defn make-test-renderer [{:keys [with-websockets?] :or {with-websockets? true}}]
   (map->TestRenderer
     {:with-websockets? with-websockets?
-     :selectors-chan selectors-chan
-     ;; unconfigurables
+     :runner-atom (atom nil)
      :root TestReport
      :target "untangled-spec-report"}))
