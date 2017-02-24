@@ -28,7 +28,6 @@
      (when-not (im/cljs-env? &env)
        (throw (ex-info "CANNOT BE USED FOR ANYTHING BUT CLOJURESCRIPT" {})))
      `(do
-        ;;TODO is this necessary, or can it be put back in runner/start ?
         (defonce _# (sel/initialize-selectors! ~selectors))
         (defonce renderer#
           (test-renderer

@@ -61,9 +61,7 @@
       (defmethod m/mutate `renderer/set-filter [{:keys [state]} _ {:keys [filter]}]
         {:action #(assoc-fragment! history :filter (name filter))})
       (defmethod m/mutate `sel/set-selector [{:keys [state]} _ new-selector]
-        {:action #(do (swap! state update :selectors sel/set-selector* new-selector)
-                    (assoc-fragment! history :selectors (sel/to-string (:selectors @state))))
-         :remote true})
+        {:action #(assoc-fragment! history :selectors (sel/to-string (sel/set-selector* (:selectors @state) new-selector)))})
       this))
   (stop [this]
     (remove-method m/mutate `renderer/set-filter)

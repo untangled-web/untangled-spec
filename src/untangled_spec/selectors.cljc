@@ -35,9 +35,9 @@
       (comp (filter :selector/active?) (map :selector/id))
       selectors)))
 
-(s/fdef get-current-selectors!
+(s/fdef get-current-selectors
   :ret ::selectors)
-(defn get-current-selectors! []
+(defn get-current-selectors []
   (:current @selectors))
 
 (s/fdef initialize-selectors!

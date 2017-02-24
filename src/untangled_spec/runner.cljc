@@ -132,7 +132,7 @@
                                :read (fn [runner k params]
                                        {:value
                                         (case k
-                                          :selectors (sel/get-current-selectors!)
+                                          :selectors (sel/get-current-selectors)
                                           (prn ::read k params))})
                                :mutate (fn [runner k params]
                                          {:action
@@ -151,7 +151,7 @@
                 api-read (fn [env k params]
                            {:value
                             (case k
-                              :selectors (sel/get-current-selectors!)
+                              :selectors (sel/get-current-selectors)
                               (prn ::read k params))})
                 api-mutate (fn [env k params]
                              {:action
