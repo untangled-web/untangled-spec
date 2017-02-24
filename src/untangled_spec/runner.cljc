@@ -104,7 +104,6 @@
   (start [this]
     #?(:cljs (let [runner-atom (-> this :test/renderer :test/renderer :runner-atom)]
                (reset! runner-atom this)))
-    (sel/initialize-selectors! (:selectors opts))
     this)
   (stop [this]
     this))
@@ -118,11 +117,11 @@
 (s/def ::test-paths (s/coll-of string?))
 (s/def ::source-paths (s/coll-of string?))
 (s/def ::ns-regex ::us/regex)
+(s/def ::selectors ::sel/initial-selectors)
 (s/fdef test-runner
   :args (s/cat
           :opts (s/keys :req-un [#?@(:cljs [::ns-regex])
-                                 #?@(:clj [::source-paths ::test-paths])
-                                 ::sel/selectors])
+                                 #?@(:clj [::source-paths ::test-paths])])
           :test! fn?
           :renderer (s/? any?)))
 (defn test-runner [opts test! & [renderer]]
@@ -133,15 +132,18 @@
                                :read (fn [runner k params]
                                        {:value
                                         (case k
-                                          ::sel/initial-selectors @sel/initial-selectors
+                                          :selectors (sel/get-current-selectors!)
                                           (prn ::read k params))})
                                :mutate (fn [runner k params]
                                          {:action
-                                          #(case k
-                                             `sel/change-active
+                                          #(condp = k
+                                             `sel/set-selector
                                              #_=> (do
-                                                    (sel/set-selectors!
-                                                      (:selectors params))
+                                                    (sel/set-selector! params)
+                                                    (run-tests runner {:refresh? false}))
+                                             `sel/set-active-selectors
+                                             #_=> (do
+                                                    (sel/set-selectors! (:selectors params))
                                                     (run-tests runner {:refresh? false}))
                                              (prn ::mutate k params))})})
                :test/reporter (reporter/make-test-reporter)))
@@ -149,16 +151,19 @@
                 api-read (fn [env k params]
                            {:value
                             (case k
-                              ::sel/initial-selectors @sel/initial-selectors
+                              :selectors (sel/get-current-selectors!)
                               (prn ::read k params))})
                 api-mutate (fn [env k params]
                              {:action
-                              #(case k
-                                 `sel/change-active
+                              #(condp = k
+                                 `sel/set-selector
+                                 #_=> (do
+                                        (sel/set-selector! params)
+                                        (run-tests (:test/runner @system) {:refresh? false}))
+                                 `sel/set-active-selectors
                                  #_=> (do
                                         (sel/set-selectors! (:selectors params))
-                                        (run-tests (:test/runner @system)
-                                                   {:refresh? false}))
+                                        (run-tests (:test/runner @system) {:refresh? false}))
                                  (prn ::mutate k params))})]
             (reset! system
               (cp/start

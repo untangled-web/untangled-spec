@@ -4,6 +4,7 @@
   (:require
     [com.stuartsierra.component :as cp]
     [untangled-spec.runner :as runner]
+    [untangled-spec.selectors :as sel]
     #?@(:cljs ([untangled-spec.renderer :as renderer]
                [untangled-spec.router :as router]))
     #?@(:clj ([clojure.java.io :as io]
@@ -27,13 +28,13 @@
      (when-not (im/cljs-env? &env)
        (throw (ex-info "CANNOT BE USED FOR ANYTHING BUT CLOJURESCRIPT" {})))
      `(do
+        ;;TODO is this necessary, or can it be put back in runner/start ?
+        (defonce _# (sel/initialize-selectors! ~selectors))
         (defonce renderer#
           (test-renderer
             {:with-websockets? false}))
         (def test-system#
-          (runner/test-runner
-            {:ns-regex ~regex
-             :selectors ~selectors}
+          (runner/test-runner {:ns-regex ~regex}
             (fn []
               (cljs.test/run-all-tests ~regex
                 (cljs.test/empty-env ::TestRunner)))
@@ -48,10 +49,11 @@
      [{:as opts :keys [test-paths]} selectors]
      (when (im/cljs-env? &env)
        (throw (ex-info "CANNOT BE USED FOR ANYTHING BUT CLOJURE" {})))
-     `(runner/test-runner ~(merge opts {:selectors selectors})
-        (fn []
-          (let [test-nss#
-                (mapcat (comp tools-ns-find/find-namespaces-in-dir io/file)
-                  ~test-paths)]
-            (apply require test-nss#)
-            (apply clojure.test/run-tests test-nss#))))))
+     `(do (defonce _# (sel/initialize-selectors! ~selectors))
+        (runner/test-runner ~(merge opts {:selectors selectors})
+          (fn []
+            (let [test-nss#
+                  (mapcat (comp tools-ns-find/find-namespaces-in-dir io/file)
+                    ~test-paths)]
+              (apply require test-nss#)
+              (apply clojure.test/run-tests test-nss#)))))))

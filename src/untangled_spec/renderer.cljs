@@ -275,25 +275,31 @@
             " (run time: " run-time ")"))))))
 (def ui-test-timing (om/factory TestTiming {:keyfn #(gensym "test-timing")}))
 
-(defui ^:once TestSelectors
+(defui ^:once SelectorControl
   static om/IQuery
-  (query [this] [:available :active :default])
+  (query [this] [:selector/id :selector/active?])
   Object
   (render [this]
-    (let [{:keys [active available default]} (om/props this)
-          is-active? (fn [sel] (contains? active sel))]
+    (let [{:keys [selector/id selector/active?]} (om/props this)]
+      (dom/li #js {:key (str id)}
+        (dom/input #js {:id (str id) :type "checkbox"
+                        :checked active?
+                        :onChange (fn [e]
+                                    (om/transact! this
+                                      `[(sel/set-selector
+                                          ~{:selector/id id
+                                            :selector/active? (.. e -target -checked)})]))})
+        (dom/label #js {:for (str id)} (str id))))))
+(def ui-selector-control (om/factory SelectorControl {:keyfn :selector/id}))
+
+(defui ^:once TestSelectors
+  Object
+  (render [this]
+    (let [selectors (om/props this)]
       (dom/div #js {:className "selector-controls"}
         (dom/ul nil
-          (map #(dom/li #js {:key (str %)}
-                  (dom/input #js {:id (str %) :type "checkbox"
-                                  :checked (is-active? %)
-                                  :onChange (fn [e]
-                                              (om/transact! this
-                                                `[(sel/set-selector
-                                                    ~{:selector %
-                                                      :checked? (.. e -target -checked)})]))})
-                  (dom/label #js {:for (str %)} (str %)))
-            (sort-by name available)))))))
+          (map ui-selector-control
+            (sort-by :selector/id selectors)))))))
 (def ui-test-selectors (om/factory TestSelectors {:keyfn #(gensym "test-selectors")}))
 
 (defui ^:once TestReport
@@ -301,7 +307,7 @@
   (initial-state [this _] {:ui/react-key (gensym "UI_REACT_KEY")
                            :report/filter :all})
   static om/IQuery
-  (query [this] [:ui/react-key :test-report :report/filter {:selectors (om/get-query TestSelectors)}])
+  (query [this] [:ui/react-key :test-report :report/filter {:selectors (om/get-query SelectorControl)}])
   Object
   (render [this]
     (let [{:keys [ui/react-key test-report selectors] current-filter :report/filter} (om/props this)]
@@ -342,11 +348,7 @@
                                      @runner-atom edn)))))
                 :started-callback
                 (fn [app]
-                  (df/load app ::sel/initial-selectors TestSelectors
-                    {:target [:selectors] :without #{:active}
-                     :post-mutation `sel/set-selectors-from-url
-                     :post-mutation-params {:prev-selectors (get-in @(om/app-state (:reconciler app))
-                                                                    [:selectors :active])}})))]
+                  (df/load app :selectors SelectorControl)))]
       (assoc this :app (uc/mount app root target))))
   (stop [this]
     (assoc this :app nil)))

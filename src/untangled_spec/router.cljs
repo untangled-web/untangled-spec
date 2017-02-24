@@ -22,13 +22,13 @@
       ;; so we dont get an ugly escaped url
       (.toDecodedString data))))
 
-(defn setup! [tx!]
+(defn setup-history! [parser tx!]
   (let [history (with-redefs [pushy/update-history!
                               #(doto %
                                  (.setUseFragment true)
                                  (.setPathPrefix "")
                                  (.setEnabled true))]
-                  (pushy/pushy tx! parse-fragment))]
+                  (pushy/pushy tx! parser))]
     (pushy/start! history)
     history))
 
@@ -38,53 +38,32 @@
                   (and (contains? renderer/filters filter) filter)
                   (do (js/console.warn "INVALID FILTER: " (str filter)) :all)))})
 
-(defmethod m/mutate `sel/change-active [{:keys [state]} _ {:keys [selectors]}]
-  {:action #(swap! state assoc-in [:selectors :active] selectors)
-   :remote true})
+(defn- update-some [m k f & more]
+  (update m k (fn [v] (if-not v v (apply f v more)))))
 
-(defmethod m/mutate `sel/set-selectors-from-url [{:keys [state ast]} k {:keys [prev-selectors]}]
-  (let [url-selectors (some->> js/window.location
-                        (new goog.Uri) (.getFragment)
-                        (new QueryData)
-                        (#(.get % "selectors"))
-                        sel/parse-selectors)]
-    {:action #(swap! state assoc-in [:selectors :active]
-                (set/intersection
-                  (get-in @state [:selectors :available])
-                  (or url-selectors (get-in @state [:selectors :default]))))
-     :remote (some-> (if url-selectors
-                       (when (not= url-selectors prev-selectors)
-                         (-> ast
-                           (assoc-in [:params :selectors] url-selectors)))
-                       (when-let [default-selectors (get-in @state [:selectors :default])]
-                         (when (not= default-selectors prev-selectors)
-                           (-> ast
-                             (assoc-in [:params :selectors] default-selectors)))))
-               (assoc :key `sel/change-active))}))
+(defmethod m/mutate `sel/set-active-selectors [{:keys [state ast]} k {:keys [selectors]}]
+  {:action #(swap! state update-some :selectors sel/set-selectors* selectors)
+   :remote true})
 
 (defrecord Router []
   cp/Lifecycle
   (start [this]
     (let [{:keys [reconciler]} (-> this :test/renderer :app)
-          history (setup!
+          history (setup-history! parse-fragment
                     (fn on-route-change [{:keys [filter selectors]}]
                       (when filter
                         (om/transact! reconciler
                           `[(set-page-filter
                               ~{:filter filter})]))
                       (om/transact! reconciler
-                        `[(sel/set-selectors-from-url
-                            ~{:prev-selectors (get-in @(om/app-state reconciler) [:selectors :active])})])))]
+                        `[(sel/set-active-selectors
+                            ~{:selectors selectors})])))]
       (defmethod m/mutate `renderer/set-filter [{:keys [state]} _ {:keys [filter]}]
         {:action #(assoc-fragment! history :filter (name filter))})
-      (defmethod m/mutate `sel/set-selector [{:keys [state ast]} _ {:keys [selector checked?]}]
-        {:action #(do (swap! state update-in [:selectors :active]
-                         (if checked? conj disj) selector)
-                    (assoc-fragment! history :selectors
-                      (get-in @state [:selectors :active])))
-         :remote (-> ast (assoc :key `sel/change-active)
-                   (assoc :params {:selectors (get-in @state [:selectors :active])}))})
-
+      (defmethod m/mutate `sel/set-selector [{:keys [state]} _ new-selector]
+        {:action #(do (swap! state update :selectors sel/set-selector* new-selector)
+                    (assoc-fragment! history :selectors (sel/to-string (:selectors @state))))
+         :remote true})
       this))
   (stop [this]
     (remove-method m/mutate `renderer/set-filter)
