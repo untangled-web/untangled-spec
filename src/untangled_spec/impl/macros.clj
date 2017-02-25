@@ -14,6 +14,7 @@
         do-report (symbol prefix "do-report")]
     `(try ~@body
        (catch ~(if-cljs &env (symbol "js" "Object") (symbol "Throwable"))
+         ;;TODO why not :type :error?
          e# (~do-report {:type :fail :actual (str e#)
                          :message ~block :expected "IT TO NOT THROW!"})))))
 

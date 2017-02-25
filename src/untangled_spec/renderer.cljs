@@ -348,7 +348,8 @@
                                      @runner-atom edn)))))
                 :started-callback
                 (fn [app]
-                  (df/load app :selectors SelectorControl)))]
+                  (df/load app :selectors SelectorControl
+                    {:post-mutation `sel/set-selectors})))]
       (assoc this :app (uc/mount app root target))))
   (stop [this]
     (assoc this :app nil)))

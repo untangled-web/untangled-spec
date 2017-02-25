@@ -16,7 +16,7 @@
   (reset! system
     (suite/test-suite {:source-paths ["src"] :test-paths ["test"]}
       {:default #{::sel/none :focused}
-       :available #{:focused :unit :integration}})))
+       :available #{:focused :should-fail}})))
 
 (defn stop []
   (when @system

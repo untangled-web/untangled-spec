@@ -20,23 +20,19 @@
 
   (component "selected-for?"
     (assertions
-      "if there are no selectors on the test, only selected if ::sel/none is active"
-      (sel/selected-for?* [] nil) => false
-      (sel/selected-for?* [] #{}) => false
-      (sel/selected-for?* (longform #{::sel/none}) nil) => true
-      (sel/selected-for?* (longform #{::sel/none}) #{}) => true
-
       "active selectors only apply on tests that have the selector"
       (sel/selected-for?* (longform #{:focused}) #{}) => false
       (sel/selected-for?* (longform #{:focused}) nil) => false
       (sel/selected-for?* (longform #{:focused}) #{:focused}) => true
 
-      "only selected if it's an active selector"
-      (sel/selected-for?* (longform #{}) #{:focused}) => false
+      "selected if it's an active selector or not defined"
+      (sel/selected-for?* (longform #{}) #{:focused}) => true
+      (sel/selected-for?* (longform #{} #{:focused}) #{:focused}) => false
       (sel/selected-for?* (longform #{:focused}) #{:focused}) => true
-      (sel/selected-for?* (longform #{:focused}) #{(keyword (gensym))}) => false
-      (sel/selected-for?* (longform #{:focused} #{:fakeused}) #{:fakeused}) => false
+      (sel/selected-for?* (longform #{:focused}) #{:asdf}) => true
+      (sel/selected-for?* (longform #{:focused} #{:asdf}) #{:asdf}) => false
 
       "must pass at least one active selector"
       (sel/selected-for?* (longform #{:unit :focused}) #{:focused}) => true
-      (sel/selected-for?* (longform #{:unit :focused}) #{:qa}) => false)))
+      (sel/selected-for?* (longform #{:unit :focused}) #{:qa}) => true
+      (sel/selected-for?* (longform #{:unit :focused} #{:qa}) #{:qa}) => false)))

@@ -11,4 +11,4 @@
 
 (ts/def-test-suite on-load #"untangled-spec\..*-spec"
   {:default #{::sel/none :focused}
-   :available #{:focused :unit :integration}})
+   :available #{:focused :should-fail}})

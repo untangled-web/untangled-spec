@@ -22,14 +22,13 @@
       ;; so we dont get an ugly escaped url
       (.toDecodedString data))))
 
-(defn setup-history! [parser tx!]
+(defn new-history [parser tx!]
   (let [history (with-redefs [pushy/update-history!
                               #(doto %
                                  (.setUseFragment true)
                                  (.setPathPrefix "")
                                  (.setEnabled true))]
                   (pushy/pushy tx! parser))]
-    (pushy/start! history)
     history))
 
 (defmethod m/mutate `set-page-filter [{:keys [state ast]} k {:keys [filter]}]
@@ -49,7 +48,7 @@
   cp/Lifecycle
   (start [this]
     (let [{:keys [reconciler]} (-> this :test/renderer :app)
-          history (setup-history! parse-fragment
+          history (new-history parse-fragment
                     (fn on-route-change [{:keys [filter selectors]}]
                       (when filter
                         (om/transact! reconciler
@@ -62,6 +61,9 @@
         {:action #(assoc-fragment! history :filter (name filter))})
       (defmethod m/mutate `sel/set-selector [{:keys [state]} _ new-selector]
         {:action #(assoc-fragment! history :selectors (sel/to-string (sel/set-selector* (:selectors @state) new-selector)))})
+      (defmethod m/mutate `sel/set-selectors [{:keys [state ast]} k {:keys [selectors]}]
+        {:action #(assoc-fragment! history :selectors (or selectors (sel/to-string (:selectors @state))))})
+      (pushy/start! history)
       this))
   (stop [this]
     (remove-method m/mutate `renderer/set-filter)

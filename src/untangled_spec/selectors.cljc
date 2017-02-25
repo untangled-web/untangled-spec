@@ -1,14 +1,10 @@
-(ns ^:figwheel-no-load untangled-spec.selectors
+(ns untangled-spec.selectors
   (:require
     #?(:cljs [cljs.reader :refer [read-string]])
     [clojure.set :as set]
     [clojure.spec :as s]
     [untangled-spec.spec :as us]
-    #?(:clj [clojure.tools.namespace.repl :as tools-ns-repl])))
-
-#?(:clj (tools-ns-repl/disable-reload!))
-
-(defonce selectors (atom {:current nil :default nil}))
+    [untangled-spec.impl.selectors :refer [selectors]]))
 
 (s/def :selector/active? boolean?)
 (s/def :selector/id keyword?)
@@ -18,7 +14,7 @@
 (s/def ::default ::shorthand)
 (s/def ::available ::shorthand)
 (s/def ::initial-selectors (s/keys :req-un [::available] :opt-un [::default]))
-(s/def ::test-selectors (s/nilable (s/and (s/conformer set vec) ::shorthand)))
+(s/def ::test-selectors (s/and (s/conformer #(if (seq %) (set %) #{::none})) ::shorthand))
 
 (s/fdef parse-selectors
   :args (s/cat :selectors-str string?)
@@ -40,6 +36,11 @@
 (defn get-current-selectors []
   (:current @selectors))
 
+(s/fdef get-default-selectors
+  :ret ::selectors)
+(defn get-default-selectors []
+  (:default @selectors))
+
 (s/fdef initialize-selectors!
   :args (s/cat :initial-selectors ::initial-selectors))
 (defn initialize-selectors! [{:keys [available default]
@@ -55,9 +56,9 @@
           :current-selectors ::selectors
           :new-selectors ::shorthand)
   :ret ::selectors)
-(defn set-selectors* [current-selectors selected?]
+(defn set-selectors* [current-selectors new-selectors]
   (mapv (fn [{:as sel :keys [selector/id]}]
-          (assoc sel :selector/active? (contains? selected? id)))
+          (assoc sel :selector/active? (contains? new-selectors id)))
     current-selectors))
 
 (defn set-selectors! [test-selectors]
@@ -85,10 +86,13 @@
   :ret boolean?)
 (defn selected-for?* [current-selectors test-selectors]
   (boolean
-    (some (comp (if (empty? test-selectors)
-                  #{::none} test-selectors)
-            :selector/id)
-          (filter :selector/active? current-selectors))))
+    (or
+      ;;not defined test selectors always run
+      (seq (set/difference test-selectors (into #{} (map :selector/id) current-selectors)))
+      ;;1+ test selector are active
+      (seq (set/intersection test-selectors
+             (into #{} (comp (filter :selector/active?) (map :selector/id))
+               current-selectors))))))
 
 (defn selected-for? [test-selectors]
   (selected-for?* (:current @selectors) test-selectors))
