@@ -33,9 +33,9 @@
                     symbol)
         prefix (im/if-cljs &env "cljs.test" "clojure.test")]
     `(~(symbol prefix "deftest") ~test-name
-       (im/try-report ~name
-         (im/when-selected-for ~(us/conform! ::sel/test-selectors selectors)
-           (im/with-reporting {:type :specification :string ~name}
+       (im/when-selected-for ~(us/conform! ::sel/test-selectors selectors)
+         (im/with-reporting {:type :specification :string ~name}
+           (im/try-report ~name
              ~@body))))))
 
 (s/def ::behavior (s/cat
@@ -58,7 +58,8 @@
         prefix (im/if-cljs &env "cljs.test" "clojure.test")]
     `(~(symbol prefix "testing") ~name
        (im/with-reporting ~{:type typekw :string name}
-         ~@body))))
+         (im/try-report ~name
+           ~@body)))))
 
 (defmacro component
   "An alias for behavior. Makes some specification code easier to read where a given specification is describing subcomponents of a whole."

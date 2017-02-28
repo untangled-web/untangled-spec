@@ -343,9 +343,7 @@
                               (reify un/UntangledNetwork
                                 (start [this app] this)
                                 (send [this edn ok err]
-                                  (ok
-                                    ((om/parser @runner-atom)
-                                     @runner-atom edn)))))
+                                  (ok ((om/parser @runner-atom) @runner-atom edn)))))
                 :started-callback
                 (fn [app]
                   (df/load app :selectors SelectorControl

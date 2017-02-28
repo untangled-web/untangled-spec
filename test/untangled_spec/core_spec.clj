@@ -20,19 +20,32 @@
     (core/var-name-from-string "\\\"@^()[]{};',/  ∂¨∫øƒ∑Ó‡ﬁ€⁄ª•¶§¡˙√ß")
     =fn=> #(re-matches #"__\-+__" (str %))))
 
+(defmacro test-core [code-block test-fn]
+  `(let [test-var# ~code-block
+         reports# (atom [])]
+     (binding [t/report #(swap! reports# conj %)]
+       (with-redefs [sel/selected-for? (constantly true)]
+         (test-var#)))
+     (~test-fn @reports#)))
+
 (specification "uncaught errors are gracefully handled & reported"
-  (assertions
-    (let [test-var (specification "ERROR INTENTIONAL" :should-fail
-                     (assert false))
-          reports (atom [])]
-      (binding [t/report #(swap! reports conj %)]
-        (with-redefs [sel/selected-for? (constantly true)]
-          (test-var)))
-      (into []
-        (comp (filter (comp #{:error :fail} :type))
-          (map #(select-keys % [:type :expected :message :actual])))
-         @reports))
-    => [{:type :fail
-         :expected "IT TO NOT THROW!"
-         :message "ERROR INTENTIONAL"
-         :actual "java.lang.AssertionError: Assert failed: false"}]))
+  (let [only-errors (comp
+                      (filter (comp #{:error} :type))
+                      (map #(select-keys % [:type :actual :message :expected]))
+                      (map #(update % :actual str)))]
+    (assertions
+      (test-core (specification "ERROR INTENTIONAL" :should-fail
+                   (assert false))
+        (partial into [] only-errors))
+      => [{:type :error
+           :actual "java.lang.AssertionError: Assert failed: false"
+           :message "ERROR INTENTIONAL"
+           :expected "IT TO NOT THROW!"}]
+      (test-core (specification "EXPECTED ERROR IN BEHAVIOR" :should-fail
+                   (behavior "SHOULD ERROR"
+                     (assert false)))
+        (partial into [] only-errors))
+      => [{:type :error
+           :actual "java.lang.AssertionError: Assert failed: false"
+           :message "SHOULD ERROR"
+           :expected "IT TO NOT THROW!"}])))

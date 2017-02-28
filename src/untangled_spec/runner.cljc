@@ -43,7 +43,7 @@
 
 #?(:clj
    (defmethod print-method Throwable [e w]
-     (print-method (str e) w)))
+     (.write w (str e))))
 
 #?(:clj
    (defn- ensure-encodable [tr]
@@ -51,7 +51,7 @@
                (some #(% x)
                      [number? string? symbol? keyword? sequential?
                       (every-pred map? (comp not record?))]))]
-       (walk/postwalk #(if (encodable? %) % (pr-str %)) tr))))
+       (walk/postwalk #(cond-> % (not (encodable? %)) pr-str) tr))))
 
 #?(:clj
    (defn- send-renderer-msg
