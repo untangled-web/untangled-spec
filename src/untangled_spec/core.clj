@@ -66,17 +66,19 @@
   [& args] `(behavior ~@args))
 
 (defmacro provided
-  "A macro for using a Midje-style provided clause within any testing framework. This macro rewrites
-   assertion-style mocking statements into code that can do that mocking.
+  "A macro for using a Midje-style provided clause within any testing framework.
+   This macro rewrites assertion-style mocking statements into code that can do that mocking.
+   See the clojure.spec for `::p/mocks`.
    See the doc string for `p/parse-arrow-count`."
   [string & forms]
-  (p/provided-fn (im/cljs-env? &env) string forms))
+  (p/provided* (im/cljs-env? &env) string forms))
 
 (defmacro when-mocking
   "A macro that works just like 'provided', but requires no string and outputs no extra text in the test output.
+   See the clojure.spec for `::p/mocks`.
    See the doc string for `p/parse-arrow-count`."
   [& forms]
-  (p/provided-fn (im/cljs-env? &env) :skip-output forms))
+  (p/provided* (im/cljs-env? &env) :skip-output forms))
 
 (s/fdef assertions :args ::ae/assertions)
 (defmacro assertions [& forms]

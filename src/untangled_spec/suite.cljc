@@ -13,7 +13,10 @@
 
 #?(:cljs
    (defn test-renderer
-     "For explicit use in creating a renderer for server tests"
+     "Creates a renderer for server (clojure) tests when using `test-suite`.
+
+      WARNING: You should not need to use this directly, instead you should be starting a server `test-suite`
+      and going to `localhost:PORT/untangled-spec-server-tests.html`."
      [& [opts]]
      (cp/start
        (cp/system-map
@@ -22,8 +25,11 @@
 
 #?(:clj
    (defmacro def-test-suite
-     "For use in defining a browser (cljs) test suite.
-      Defs a function to re-run-tests onto `suite-name`"
+     "For use in defining a browser (cljs) test suite. Defines a function `suite-name` to re-run tests.
+
+      WARNING: You should also be defining a cljsbuild that emits your client tests to `js/test/test.js`.
+
+      NOTE: Will fail if used outside of clojurescript files."
      [suite-name regex selectors]
      (when-not (im/cljs-env? &env)
        (throw (ex-info "CANNOT BE USED FOR ANYTHING BUT CLOJURESCRIPT" {})))
@@ -43,12 +49,18 @@
 
 #?(:clj
    (defmacro test-suite
-     "For use in defining a server (clojure) test suite.
-      Returns a system that can be `start`-ed and `stop`-ed."
+     "For use in defining a server (clojure) test suite. Returns a system that can be `start`-ed and `stop`-ed.
+
+      WARNING: It is up to you to manage the lifecycle of the returned system,
+      ie: make sure you don't accidentally reload away a started system without stopping it first!
+      (See: clojure.tools.namespace.repl/disable-reload!)
+
+      NOTE: Will fail if used outside of clojure files."
      [{:as opts :keys [test-paths]} selectors]
      (when (im/cljs-env? &env)
        (throw (ex-info "CANNOT BE USED FOR ANYTHING BUT CLOJURE" {})))
-     `(do (defonce _# (sel/initialize-selectors! ~selectors))
+     `(do
+        (defonce _# (sel/initialize-selectors! ~selectors))
         (runner/test-runner ~(merge opts {:selectors selectors})
           (fn []
             (let [test-nss#

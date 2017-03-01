@@ -66,7 +66,8 @@
 (s/def ::regex ::us/regex)
 (s/def ::fn ::us/any)
 (s/def ::criteria
-  (s/or :sym symbol?
+  (s/or
+    :sym symbol?
     :list (s/cat :ex-type ::ex-type :regex (s/? ::regex) :fn (s/? ::fn))
     :map (s/keys :opt-un [::ex-type ::regex ::fn])))
 
