@@ -97,7 +97,7 @@ Finished at 17:32:43.925 (run time: 0.01s)
   (:require
     [untangled-spec.suite :as suite]))
 
-(suite/def-test-suite on-load {:ns-regex #"untangled-spec\..*-spec"}
+(suite/def-test-suite on-load {:ns-regex #"your-ns\..*-spec"}
   {:default #{::sel/none :focused}
    :available #{:focused :should-fail}})
 ----
