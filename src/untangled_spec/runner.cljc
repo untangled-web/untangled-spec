@@ -92,9 +92,9 @@
   (novelty! runner 'untangled-spec.renderer/render-tests
     (reporter/get-test-report reporter)))
 
-(defn run-tests [runner & [{:keys [refresh?] :or {refresh? true}}]]
-  #?(:clj (when refresh? (tools-ns-repl/refresh)))
+(defn run-tests [runner {:keys [refresh?] :or {refresh? false}}]
   (reporter/reset-test-report! (:test/reporter runner))
+  #?(:clj (when refresh? (tools-ns-repl/refresh)))
   (reporter/with-untangled-reporting
     runner render-tests
     ((:test! runner))))
@@ -117,11 +117,13 @@
 (s/def ::test-paths (s/coll-of string?))
 (s/def ::source-paths (s/coll-of string?))
 (s/def ::ns-regex ::us/regex)
-(s/def ::selectors ::sel/initial-selectors)
+(s/def ::port number?)
+(s/def ::config (s/keys :req-un [::port]))
+(s/def ::opts (s/keys :req-un [#?@(:cljs [::ns-regex])
+                               #?@(:clj [::source-paths ::test-paths ::config])]))
 (s/fdef test-runner
   :args (s/cat
-          :opts (s/keys :req-un [#?@(:cljs [::ns-regex])
-                                 #?@(:clj [::source-paths ::test-paths])])
+          :opts ::opts
           :test! fn?
           :renderer (s/? any?)))
 (defn test-runner [opts test! & [renderer]]
@@ -140,11 +142,11 @@
                                              `sel/set-selector
                                              #_=> (do
                                                     (sel/set-selector! params)
-                                                    (run-tests runner {:refresh? false}))
+                                                    (run-tests runner {}))
                                              `sel/set-active-selectors
                                              #_=> (do
                                                     (sel/set-selectors! (:selectors params))
-                                                    (run-tests runner {:refresh? false}))
+                                                    (run-tests runner {}))
                                              (prn ::mutate k params))})})
                :test/reporter (reporter/make-test-reporter)))
      :clj (let [system (atom nil)
@@ -159,18 +161,18 @@
                                  `sel/set-selector
                                  #_=> (do
                                         (sel/set-selector! params)
-                                        (run-tests (:test/runner @system) {:refresh? false}))
+                                        (run-tests (:test/runner @system) {}))
                                  `sel/set-active-selectors
                                  #_=> (do
                                         (sel/set-selectors! (:selectors params))
-                                        (run-tests (:test/runner @system) {:refresh? false}))
+                                        (run-tests (:test/runner @system) {}))
                                  (prn ::mutate k params))})]
             (reset! system
               (cp/start
                 (usc/make-untangled-server
-                  :config-path "config/untangled-spec-server-tests-config.edn"
                   :parser (oms/parser {:read api-read :mutate api-mutate})
-                  :components {:channel-server (wcs/make-channel-server)
+                  :components {:config {:value (:config opts)}
+                               :channel-server (wcs/make-channel-server)
                                :channel-listener (make-channel-listener)
                                :test/runner (make-test-runner opts test!)
                                :test/reporter (reporter/make-test-reporter)

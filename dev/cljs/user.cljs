@@ -2,7 +2,7 @@
   (:require
     [clojure.spec.test :as st]
     [untangled-spec.tests-to-run]
-    [untangled-spec.suite :as ts]
+    [untangled-spec.suite :as suite]
     [untangled-spec.selectors :as sel]))
 
 (enable-console-print!)
@@ -12,6 +12,6 @@
 
 ;;define on-load as a fn that re-runs (and renders) the tests
 ;;for use by figwheel's :on-jsload
-(ts/def-test-suite on-load #"untangled-spec\..*-spec"
+(suite/def-test-suite on-load {:ns-regex #"untangled-spec\..*-spec"}
   {:default #{::sel/none :focused}
    :available #{:focused :should-fail}})

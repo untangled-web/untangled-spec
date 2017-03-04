@@ -27,7 +27,8 @@
   :test-paths ["test"]
   :resource-paths ["resources"]
 
-  ;; this for backwards compatability, should now use untangled-spec.suite/test-suite & see dev/clj/user.clj for an example
+  ;; this for backwards compatability, should now use untangled-spec.suite/def-test-suite
+  ;; (see dev/clj/user.clj for an example)
   :test-refresh {:report untangled-spec.reporters.terminal/untangled-report
                  :changes-only true
                  :with-repl true}

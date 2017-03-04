@@ -14,7 +14,113 @@ image::https://img.shields.io/clojars/v/navis/untangled-spec.svg[link="https://c
 Release: image:https://api.travis-ci.org/untangled-web/untangled-spec.svg?branch=master[link=https://github.com/untangled-web/untangled-spec/tree/master]
 Develop: image:https://api.travis-ci.org/untangled-web/untangled-spec.svg?branch=develop[link=https://github.com/untangled-web/untangled-spec/tree/develop]
 
-== Learn more
+== Usage
+
+* Write a test file, eg: `test/your-ns/arithmetic_spec.cljc`
+
+[source]
+----
+(ns your-ns.arithmetic-spec
+  (:require
+    [untangled-spec.core :refer [specification behavior component assertions]]))
+
+(specification "arithmetic"
+  (component "addition"
+    (behavior "is commutative"
+      (assertions
+        (+ 13 42) => (+ 42 13))
+----
+
+=== Clojure In The Terminal
+
+* Add `[test-refresh "0.18.1"]` to your `:plugins`, and the following to your `project.clj` configuration:
+
+    :test-refresh {:report untangled-spec.reporters.terminal/untangled-report}
+
+* Run `lein test-refresh` in your command-line, et voila! You should see something like:
+
+----
+Using reporter: untangled-spec.reporters.terminal/untangled-report
+*********************************************
+*************** Running tests ***************
+:reloading (your-ns.arithmetic-spec)
+Running tests for: (your-ns.arithmetic-spec)
+
+Testing your-ns.arithmetic-spec
+   addition
+     is commutative
+
+Ran 1 tests containing 1 assertions.
+0 failures, 0 errors.
+
+Failed 0 of 1 assertions
+Finished at 17:32:43.925 (run time: 0.01s)
+----
+
+=== Clojure In The Browser
+
+* Create a `dev/user.clj` file that contains:
+
+[source]
+----
+(ns user
+  (:require
+    [untangled-spec.suite :as suite])
+
+(suite/def-test-suite my-test-suite
+  {:config {:port 8888}
+   :test-paths ["test"]
+   :source-paths ["src"]}
+  {:available #{:focused :unit :integration}
+   :default #{:untangled-spec.selectors/none :focused :unit}})
+----
+
+* Call `my-test-suite` and go to link:localhost:8888/untangled-spec-server-tests.html[]
+
+=== CLJS In The Browser
+
+* Add to your `/dev/clj/user.clj`:
+
+[source]
+----
+(defn start-figwheel [build-ids]
+  (-> (fsys/fetch-config)
+      (assoc-in [:data :build-ids] build-ids)
+      fsys/figwheel-system cp/start fsys/cljs-repl))
+----
+
+* Create a `/dev/cljs/user.cljs`
+
+[source]
+----
+(ns cljs.user
+  (:require
+    [untangled-spec.suite :as suite]))
+
+(suite/def-test-suite on-load {:ns-regex #"untangled-spec\..*-spec"}
+  {:default #{::sel/none :focused}
+   :available #{:focused :should-fail}})
+----
+
+* Add a `:cljsbuild` for your tests, eg:
+
+[source]
+----
+{:source-paths ["src" "dev" "test"]
+ :figwheel     {:on-jsload cljs.user/on-load}
+ :compiler     {:main          cljs.user
+                :output-to     "resources/public/js/test/test.js"
+                :output-dir    "resources/public/js/test/out"
+                :asset-path    "js/test/out"
+                :optimizations :none}}
+----
+
+    lein repl
+    #_=> (start-figwheel ["test"])
+
+==== For CI
+
+== Learn More
 * about link:docs/index.adoc#untangled-spec-docs[Untangled Spec]
 * about link:http://untangled-web.github.io/untangled/index.html[Untangled] & checkout the link:http://untangled-web.github.io/untangled/index.html[Documentation Reference]
 * interactively with the link:http://untangled-web.github.io/untangled/tutorial.html[Untangled Tutorial]
@@ -22,23 +128,32 @@ Develop: image:https://api.travis-ci.org/untangled-web/untangled-spec.svg?branch
 
 == Development
 
-To run cljs tests:
+=== CLJS In The Browser
 
-     lein repl
-     user=> (start-figwheel ["test"])
+    lein repl
+    #_user=> (start-figwheel ["test"])
 
-To run clj tests:
+& link:localhost:8888/untangled-spec-server-tests.html[]
 
-     lein test-refresh
+=== Clojure In The Terminal
+
+    lein test-refresh
+
+=== Clojure In The Browser
+
+    lein repl
+    #_user=> (start)
+
+& link:localhost:8888/untangled-spec-server-tests.html[]
 
 === CI Testing
 
-To run the CLJ and CLJS tests on the CI server, it must have chrome, node, and npm installed. Then
-you can simply use the Makefile:
+To run the CLJ and CLJS tests on a CI server, it must have chrome, node, and npm installed. +
+Then you can simply use the Makefile:
 
     make tests
 
-or run
+or manually run:
 
 	npm install
 	lein doo chrome automated-tests once
