@@ -1,6 +1,6 @@
 tests:
 	npm install
-	lein test-cljs
+	lein with-profile test doo chrome automated-tests once
 	lein test-refresh :run-once
 
 help:
