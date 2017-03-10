@@ -1,7 +1,5 @@
 (ns untangled-spec.selectors-spec
   (:require
-    [clojure.spec :as s]
-    [clojure.spec.test :as st]
     [untangled-spec.core :refer [specification behavior component assertions]]
     [untangled-spec.selectors :as sel]))
 

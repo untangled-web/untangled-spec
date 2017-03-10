@@ -2,7 +2,7 @@
   (:require
     [untangled-spec.diff :as src
      :refer [nf diff diff-elem patch compress decompress]]
-    [untangled-spec.core :as usc #?(:clj :refer :cljs :refer-macros)
+    [untangled-spec.core :as usc :refer
      [specification behavior assertions]]))
 
 (specification "the diff function"

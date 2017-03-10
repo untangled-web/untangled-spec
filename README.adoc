@@ -73,9 +73,12 @@ Finished at 17:32:43.925 (run time: 0.01s)
    :source-paths ["src"]}
   {:available #{:focused :unit :integration}
    :default #{:untangled-spec.selectors/none :focused :unit}})
-----
 
-* Call `my-test-suite` and go to link:localhost:8888/untangled-spec-server-tests.html[]
+(my-test-suite) ;;<1>
+----
+<1> Starts the test suite, note that it will stop any pre-existing test suite first, so it's safe to call this whenever (eg: hot code reload).
+
+* link:localhost:8888/untangled-spec-server-tests.html[]
 
 === CLJS In The Browser
 
@@ -95,6 +98,7 @@ Finished at 17:32:43.925 (run time: 0.01s)
 ----
 (ns cljs.user
   (:require
+    your-ns.arithmetic-spec ;; ensures your tests are loaded so the test suite can find them
     [untangled-spec.suite :as suite]))
 
 (suite/def-test-suite on-load {:ns-regex #"your-ns\..*-spec"}
@@ -106,7 +110,8 @@ Finished at 17:32:43.925 (run time: 0.01s)
 
 [source]
 ----
-{:source-paths ["src" "dev" "test"]
+{:id "test"
+ :source-paths ["src" "dev" "test"]
  :figwheel     {:on-jsload cljs.user/on-load}
  :compiler     {:main          cljs.user
                 :output-to     "resources/public/js/test/test.js"
@@ -120,6 +125,44 @@ Finished at 17:32:43.925 (run time: 0.01s)
 
 ==== For CI
 
+* Add lein-doo as both a test dependency and a plugin
+
+    :dependencies [#_... [lein-doo "0.1.6" :scope "test"] #_...]
+    :plugins [#_... [lein-doo "0.1.6"] #_...]
+
+
+* Add a `:cljsbuild` for your CI tests, eg:
+
+[source]
+----
+{:id "automated-tests"
+ :source-paths ["src" "test"]
+ :compiler     {:output-to     "resources/private/js/unit-tests.js"
+                :output-dir    "resources/private/js/unit-tests"
+                :asset-path    "js/unit-tests"
+                :main          untangled-spec.all-tests
+                :optimizations :none}}
+----
+
+* Add a file that runs your tests
+
+[source]
+----
+(ns your-ns.all-tests
+  (:require
+    your-ns.arithmetic-spec ;; ensures tests are loaded so doo can find them
+    [doo.runner :refer-macros [doo-all-tests]]))
+
+(doo-all-tests #"untangled-spec\..*-spec")
+----
+
+* Run `lein doo chrome automated-tests once`, +
+
+NOTE: If you put the `automated-tests` build in a lein profile (eg: test), +
+you will have to prepend a `with-profile test ...` in your command.
+
+* See link:http://github.com/bensu/doo#doo[doo] itself for further details & as a fallback if this information is somehow out of date.
+
 == Learn More
 * about link:docs/index.adoc#untangled-spec-docs[Untangled Spec]
 * about link:http://untangled-web.github.io/untangled/index.html[Untangled] & checkout the link:http://untangled-web.github.io/untangled/index.html[Documentation Reference]
@@ -127,6 +170,9 @@ Finished at 17:32:43.925 (run time: 0.01s)
 ** http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.K_Testing[untangled_tutorial.K_Testing]
 
 == Development
+
+NOTE: This section is for the _development_ of *untangled-spec itself*. +
+If you wanted instructions on how to use untangled-spec in your app/library, see <<Usage>>
 
 === CLJS In The Browser
 
@@ -156,8 +202,8 @@ Then you can simply use the Makefile:
 or manually run:
 
 	npm install
-	lein doo chrome automated-tests once
-	lein test-refresh :run-once
+	lein test-cljs
+	lein test-clj
 
 == License
 

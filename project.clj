@@ -54,12 +54,16 @@
   :figwheel {:nrepl-port 7888
              :server-port 3457}
 
-  :aliases {"jar" ["with-profile" "with-cljs" "jar"]}
+  :aliases {"jar" ["with-profile" "with-cljs" "jar"]
+            "test-cljs" ["with-profile" "test" "doo" "chrome" "automated-tests" "once"]
+            "test-clj" ["test-refresh" ":run-once"]}
 
   :profiles {:with-cljs {:prep-tasks ["compile" ["cljsbuild" "once" "spec-renderer"]]}
-             :test {:cljsbuild {:builds {:automated-tests {:doc "FOR CI tests. Runs via doo"
+             :test {:cljsbuild {:builds {:automated-tests {:doc "For CI tests. Runs via doo"
                                                            :source-paths ["src" "test"]
                                                            :compiler     {:output-to     "resources/private/js/unit-tests.js"
+                                                                          :output-dir    "resources/private/js/unit-tests"
+                                                                          :asset-path    "js/unit-tests"
                                                                           :main          untangled-spec.all-tests
                                                                           :optimizations :none}}}}}
              :dev {:cljsbuild {:builds {:test {:source-paths ["src" "dev" "test"]

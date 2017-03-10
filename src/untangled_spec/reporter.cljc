@@ -1,4 +1,5 @@
 (ns untangled-spec.reporter
+  #?(:cljs (:require-macros [untangled-spec.reporter]))
   (:require
     #?@(:cljs ([cljs-uuid-utils.core :as uuid]
                [cljs.stacktrace :refer [parse-stacktrace]]))

@@ -1,7 +1,4 @@
 (ns untangled-spec.runner
-  #?(:cljs
-     (:require-macros
-       [untangled-spec.runner :refer [define-assert-exprs!]]))
   (:require
     [clojure.spec :as s]
     [clojure.test :as t]
@@ -25,21 +22,6 @@
                [untangled.server.core :as usc]
                [untangled.websockets.protocols :as ws]
                [untangled.websockets.components.channel-server :as wcs]))))
-
-#?(:clj
-   (defmacro define-assert-exprs! []
-     (let [test-ns (im/if-cljs &env "cljs.test" "clojure.test")
-           do-report (symbol test-ns "do-report")
-           t-assert-expr (im/if-cljs &env cljs.test/assert-expr clojure.test/assert-expr)
-           do-assert-expr
-           (fn [args]
-             (let [[msg form] (cond-> args (im/cljs-env? &env) rest)]
-               `(~do-report ~(ae/assert-expr msg form))))]
-       (defmethod t-assert-expr '=       eq-ae     [& args] (do-assert-expr args))
-       (defmethod t-assert-expr 'exec    fn-ae     [& args] (do-assert-expr args))
-       (defmethod t-assert-expr 'throws? throws-ae [& args] (do-assert-expr args))
-       nil)))
-(define-assert-exprs!)
 
 #?(:clj
    (defmethod print-method Throwable [e w]

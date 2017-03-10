@@ -1,6 +1,5 @@
 (ns untangled-spec.suite
-  #?(:cljs (:require-macros
-             [untangled-spec.suite]))
+  #?(:cljs (:require-macros [untangled-spec.suite]))
   (:require
     [clojure.spec :as s]
     [com.stuartsierra.component :as cp]

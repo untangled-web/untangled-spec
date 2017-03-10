@@ -1,4 +1,6 @@
 (ns untangled-spec.core
+  (:require-macros
+    [untangled-spec.core])
   (:require
     [cljs.test :include-macros true]
     [untangled-spec.assertions]

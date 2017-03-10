@@ -1,5 +1,10 @@
 (ns untangled-spec.assertions
+  #?(:cljs
+     (:require-macros
+       [untangled-spec.assertions :refer [define-assert-exprs!]]))
   (:require
+    #?(:clj [clojure.test])
+    cljs.test ;; contains multimethod in clojure file
     [clojure.spec :as s]
     #?(:clj [untangled-spec.impl.macros :as im])
     [untangled-spec.spec :as us]))
@@ -120,3 +125,18 @@
   (let [asserts (map (partial triple->assertion cljs?) triples)]
     `(im/with-reporting ~(when behavior {:type :behavior :string behavior})
        ~@asserts)))
+
+#?(:clj
+   (defmacro define-assert-exprs! []
+     (let [test-ns (im/if-cljs &env "cljs.test" "clojure.test")
+           do-report (symbol test-ns "do-report")
+           t-assert-expr (im/if-cljs &env cljs.test/assert-expr clojure.test/assert-expr)
+           do-assert-expr
+           (fn [args]
+             (let [[msg form] (cond-> args (im/cljs-env? &env) rest)]
+               `(~do-report ~(assert-expr msg form))))]
+       (defmethod t-assert-expr '=       eq-ae     [& args] (do-assert-expr args))
+       (defmethod t-assert-expr 'exec    fn-ae     [& args] (do-assert-expr args))
+       (defmethod t-assert-expr 'throws? throws-ae [& args] (do-assert-expr args))
+       nil)))
+(define-assert-exprs!)
