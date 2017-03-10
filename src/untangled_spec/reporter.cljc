@@ -217,7 +217,7 @@
       :end-provided (end-provided reporter t)
       :summary (do (summary reporter t) #?(:clj (on-complete system)))
       #?@(:cljs [:end-run-tests (on-complete system)])
-      :ok)))
+      nil)))
 
 #?(:clj
    (defmacro with-untangled-reporting [system on-complete & body]

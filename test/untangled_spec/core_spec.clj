@@ -26,6 +26,7 @@
      (binding [t/report #(swap! reports# conj %)]
        (with-redefs [sel/selected-for? (constantly true)]
          (test-var#)))
+     (alter-meta! test-var# dissoc :test)
      (~test-fn @reports#)))
 
 (specification "uncaught errors are gracefully handled & reported"

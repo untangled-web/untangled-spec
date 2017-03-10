@@ -32,6 +32,7 @@
   :test-refresh {:report untangled-spec.reporters.terminal/untangled-report
                  :changes-only true
                  :with-repl true}
+  :test-selectors {:default (complement :should-fail)}
 
   ;; CI tests: Set up to support karma runner. Recommend running against chrome. See README
   :doo {:build "automated-tests"
