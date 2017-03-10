@@ -4,4 +4,4 @@ before_script:
     - "sh -e /etc/init.d/xvfb start"
     - sleep 3
 script:
-  - make tests
+  - make travis-tests

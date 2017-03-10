@@ -56,6 +56,7 @@
 
   :aliases {"jar" ["with-profile" "with-cljs" "jar"]
             "test-cljs" ["with-profile" "test" "doo" "chrome" "automated-tests" "once"]
+            "test-cljs-firefox" ["with-profile" "test" "doo" "firefox" "automated-tests" "once"]
             "test-clj" ["test-refresh" ":run-once"]}
 
   :profiles {:with-cljs {:prep-tasks ["compile" ["cljsbuild" "once" "spec-renderer"]]}
