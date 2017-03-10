@@ -5,7 +5,7 @@ tests:
 
 travis-tests:
 	npm install
-	lein test-cljs-firefox
+	lein with-profile test doo firefox automated-tests once
 	lein test-clj
 
 help:
