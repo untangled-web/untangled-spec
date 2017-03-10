@@ -167,12 +167,9 @@ TLDR: `lein doo ${js-env} automated-tests once`, where for ex `${js-env}` is `ch
 == Server Tests
 
 === With reporting in the terminal
-* The https://github.com/jakemcc/lein-test-refresh[lein test-refresh plugin], which will re-run server tests on save, and can be configured (see the `:test-refresh` section in the link:../project.clj[project.clj]).
-* A cljsbuild with id `:spec-renderer` for rendering server specs in the browser. +
-NOTE: you will not need to copy/have this build in your own project, see <<With reporting in the browser>>
-* link:../dev/clj/user.clj[user.clj] : The entry point for running clojure tests that should be rendered in the browser.
 
-Put https://github.com/jakemcc/lein-test-refresh[jakemcc/lein-test-refresh] in your `:plugins`.
+* The https://github.com/jakemcc/lein-test-refresh[lein test-refresh plugin], which will re-run server tests on save, and can be configured (see the `:test-refresh` section in the link:../project.clj[project.clj]).
+* link:../dev/clj/user.clj[user.clj] : The entry point for running clojure tests that should be rendered in the browser.
 
 Use `lein test-refresh` at the command line.
 Read https://github.com/jakemcc/lein-test-refresh/blob/master/CHANGES.md#040[this changelog entry]
