@@ -289,7 +289,7 @@
                                       `[(sel/set-selector
                                           ~{:selector/id id
                                             :selector/active? (.. e -target -checked)})]))})
-        (dom/label #js {:for (str id)} (str id))))))
+        (dom/label #js {:htmlFor (str id)} (str id))))))
 (def ui-selector-control (om/factory SelectorControl {:keyfn :selector/id}))
 
 (defui ^:once TestSelectors
