@@ -110,18 +110,18 @@
   (render [this]
     (let [d (om/props this)
           {:keys [exp got path]} (diff/extract d)]
-      (dom/table #js {:className "human-diff-lines"}
-        (dom/tbody nil
-          (when (seq path)
+      (when (seq path)
+        (dom/table #js {:className "human-diff-lines"}
+          (dom/tbody nil
             (dom/tr #js {:className "path"}
               (dom/td nil "at: ")
-              (dom/td nil (str path))))
-          (dom/tr #js {:className "expected"}
-            (dom/td nil "exp: ")
-            (dom/td nil (html-edn exp)))
-          (dom/tr #js {:className "actual"}
-            (dom/td nil "got: ")
-            (dom/td nil (html-edn got))))))))
+              (dom/td nil (str path)))
+            (dom/tr #js {:className "expected"}
+              (dom/td nil "exp: ")
+              (dom/td nil (html-edn exp)))
+            (dom/tr #js {:className "actual"}
+              (dom/td nil "got: ")
+              (dom/td nil (html-edn got)))))))))
 (def ui-human-diff-lines (om/factory HumanDiffLines {:keyfn #(gensym "human-diff-lines")}))
 
 (defui ^:once HumanDiff
@@ -168,7 +168,7 @@
                (ui-result-line {:type :normal
                                 :title "Message: "
                                 :value extra}))
-             (when diff
+             (when-let [diff (and diff (seq (filter (comp seq key) diff)))]
                (ui-human-diff {:actual actual
                                :diff diff})))
         (dom/table nil)

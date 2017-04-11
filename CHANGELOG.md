@@ -5,6 +5,7 @@
 - Adding selectors to the specification macro that work with untangled-spec, test-refresh, doo, etc...
     - They emit meta data on the deftest var so they are compatible with anything,
       but also wrap the body so that untangled-spec can properly run just the selected tests.
+- gh-30 -> only showing non-redundant diffs
 
 0.4.0
 -----
