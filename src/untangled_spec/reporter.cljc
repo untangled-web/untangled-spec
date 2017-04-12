@@ -6,7 +6,8 @@
     [clojure.set :as set]
     [clojure.test :as t]
     [com.stuartsierra.component :as cp]
-    [untangled-spec.diff :refer [diff]])
+    [untangled-spec.diff :refer [diff]]
+    [untangled-spec.selectors :as sel])
   #?(:clj
      (:import
        (java.text SimpleDateFormat)
@@ -180,6 +181,7 @@
   (swap! state merge t))
 
 (defn reset-test-report! [{:keys [state path]}]
+  (sel/initialize-selectors! {:available #{}})
   (reset! state (make-testreport))
   (reset! path []))
 

@@ -184,7 +184,7 @@
   (t/with-test-out
     (println)
     (println (color-str (:status make-tests-by-namespace)
-               "Testing " (:name make-tests-by-namespace)))
+               " " (:name make-tests-by-namespace)))
     (into []
       (comp when-fail-only-keep-failed
         (map #(print-test-item % 1)))
